@@ -1,0 +1,22 @@
+# Dados e geometrias
+pandas>=2.0
+numpy>=1.24
+geopandas>=0.14
+shapely>=2.0
+openpyxl>=3.1
+pyogrio>=0.7
+
+# Banco de dados
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+
+# Sensoriamento remoto
+rasterio>=1.3
+requests>=2.31
+
+# Visualização
+matplotlib>=3.7
+
+# Utilitários
+tqdm>=4.65
+python-dotenv>=1.0

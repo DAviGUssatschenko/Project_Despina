@@ -1,22 +1,3 @@
-#!/usr/bin/env python3
-"""
-POSEIDON-COPERNICUS-EMBRAPA — Validador de Sinistros Agrícolas
-==============================================================
-Uso:
-  python main.py \\
-    --geojson  fazenda.geojson \\
-    --start    2023-01-01 \\
-    --end      2023-03-31 \\
-    --problem  seca \\
-    --crop     soja \\
-    --db       "postgresql://poseidon:SENHA@host:port/poseidon" \\
-    --area-ha  200 \\
-    --planting 2022-10-20 \\
-    --farm-name "Fazenda São João"
-
-Adicione --dry-run para testar sem banco/internet.
-Adicione --no-soil  para pular análise de solo EMBRAPA.
-"""
 
 import argparse
 import json

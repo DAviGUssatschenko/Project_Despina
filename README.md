@@ -132,8 +132,9 @@ agricultural-claims-validator/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/agricultural-claims-validator.git
-cd agricultural-claims-validator
+[git clone https://github.com/your-org/agricultural-claims-validator.git
+](https://github.com/DAviGUssatschenko/Project_Despina.git)
+cd Project_Despina
 
 # 2. Create and activate a virtual environment
 python -m venv .venv

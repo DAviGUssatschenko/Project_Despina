@@ -22,6 +22,7 @@ import argparse
 import json
 import sys
 import math
+import os
 from datetime import datetime, date
 from typing import Dict, Optional
 
@@ -56,6 +57,7 @@ def build_parser():
     p.add_argument("--fast",      action="store_true", help="Usa ponto Poseidon mais próximo (sem IDW)")
     p.add_argument("--no-soil",   action="store_true", help="Pula análise de solo EMBRAPA")
     p.add_argument("--soil-shp",  default=None,   help="Caminho alternativo para shapefile EMBRAPA")
+    p.add_argument("--pipeline",  default=None,   help="Caminho do pipeline_*.json de saída (padrão: pipeline_<nome>_<data>_<evento>.json)")
     return p
 
 
@@ -227,6 +229,172 @@ def synthetic_soil(event_type: str) -> Dict:
     }
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pipeline JSON Export
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _json_default(obj):
+    """Serializer para tipos não nativos do JSON (date, datetime, etc.)."""
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    if hasattr(obj, "__float__"):
+        return float(obj)
+    if hasattr(obj, "__int__"):
+        return int(obj)
+    return str(obj)
+
+
+def _idw_daily_to_records(idw_df) -> list:
+    """
+    Converte o DataFrame diário interpolado pelo IDW em lista de dicts,
+    garantindo que 'date' seja string ISO e que todos os campos numéricos
+    esperados pelo dashboard.py estejam presentes.
+    """
+    if idw_df is None or getattr(idw_df, "empty", True):
+        return []
+    required = ["date", "prcp", "tmax", "tmin", "tavg", "rh_avg",
+                "rh_min", "rh_max", "wspd_avg", "wspd_max", "wspd_min"]
+    records = []
+    for _, row in idw_df.iterrows():
+        rec = {}
+        for col in required:
+            val = row.get(col)
+            if hasattr(val, "isoformat"):          # Timestamp / date
+                rec[col] = val.isoformat()[:10]
+            elif val is None or (isinstance(val, float) and math.isnan(val)):
+                rec[col] = None
+            else:
+                try:
+                    rec[col] = round(float(val), 4)
+                except Exception:
+                    rec[col] = None
+        records.append(rec)
+    return records
+
+
+def _cop_data_with_series(cop_data: dict, start_date: date, end_date: date) -> dict:
+    """
+    Garante que cada índice em cop_data tenha as chaves que cop_to_ts()
+    do dashboard.py precisa: baseline_series e event_series, com items
+    contendo 'from', 'mean', 'stdev'.
+    Se cop_data já veio da Statistics API com séries aninhadas, mantém.
+    Se veio de outro formato (sem séries), reconstrói listas mínimas.
+    """
+    out = {}
+    for idx_name, data in cop_data.items():
+        if not isinstance(data, dict):
+            out[idx_name] = data
+            continue
+
+        entry = dict(data)
+
+        # --- garante baseline_series ---
+        if not entry.get("baseline_series"):
+            b_mean = entry.get("baseline_mean")
+            if b_mean is not None:
+                entry["baseline_series"] = [{
+                    "from": datetime(
+                        start_date.year - 1,
+                        start_date.month,
+                        start_date.day
+                    ).date().isoformat(),
+                    "mean":  b_mean,
+                    "stdev": entry.get("baseline_std") or 0.0,
+                }]
+            else:
+                entry["baseline_series"] = []
+
+        # --- garante event_series ---
+        if not entry.get("event_series"):
+            e_mean = entry.get("event_mean")
+            if e_mean is not None:
+                entry["event_series"] = [{
+                    "from":  start_date.isoformat(),
+                    "mean":  e_mean,
+                    "stdev": entry.get("event_std") or 0.0,
+                }]
+            else:
+                entry["event_series"] = []
+
+        # normaliza itens das séries para o schema esperado
+        for series_key in ("baseline_series", "event_series"):
+            normalized = []
+            for item in entry[series_key]:
+                if not isinstance(item, dict):
+                    continue
+                dt_val = (item.get("from")
+                          or item.get("date")
+                          or (item.get("interval") or {}).get("from"))
+                if not dt_val:
+                    continue
+                normalized.append({
+                    "from":  str(dt_val)[:10],
+                    "mean":  item.get("mean"),
+                    "stdev": item.get("stdev") or item.get("std") or 0.0,
+                })
+            entry[series_key] = normalized
+
+        out[idx_name] = entry
+    return out
+
+
+def save_pipeline_json(
+    *,
+    farm_name: str,
+    event_type: str,
+    crop_type: str,
+    start_date: date,
+    end_date: date,
+    area_ha: float,
+    centroid: dict,
+    geometry: dict,
+    analysis: dict,
+    cop_data: dict,
+    pos_summ: dict,
+    pos_vote: dict,
+    soil_data: dict,
+    idw_df=None,
+    output_path: str = None,
+) -> str:
+    """
+    Serializa todos os dados do pipeline no formato exato que o dashboard.py
+    espera ler ao carregar um pipeline_*.json.
+
+    Retorna o caminho do arquivo salvo.
+    """
+    safe = farm_name.replace(" ", "_").replace("/", "-")
+    if output_path is None:
+        output_path = f"pipeline_{safe}_{start_date.isoformat()}_{event_type}.json"
+
+    payload = {
+        "meta": {
+            "farm_name":  farm_name,
+            "event_type": event_type,
+            "crop_type":  crop_type,
+            "start_date": start_date.isoformat(),
+            "end_date":   end_date.isoformat(),
+            "area_ha":    round(float(area_ha), 4) if area_ha else 0.0,
+            "centroid":   {
+                "lat": round(float(centroid.get("lat", 0)), 6),
+                "lon": round(float(centroid.get("lon", 0)), 6),
+            },
+        },
+        "geometry":         geometry,
+        "analysis":         analysis,
+        "copernicus":       _cop_data_with_series(cop_data, start_date, end_date),
+        "poseidon_summary": pos_summ,
+        "poseidon_vote":    pos_vote,
+        "poseidon_daily":   _idw_daily_to_records(idw_df),
+        "soil_data":        soil_data or {},
+    }
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2, default=_json_default)
+
+    return output_path
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -283,6 +451,7 @@ def main() -> int:
         }
         neighbors = {}
         soil_data = synthetic_soil(args.problem) if not args.no_soil else None
+        idw_df    = None
 
     # ── Produção ──────────────────────────────────────────────────────────────
     else:
@@ -321,6 +490,7 @@ def main() -> int:
 
         console.print("[cyan]   Coletando histórico local...[/cyan]")
         hist_baseline = poseidon.get_historical_baseline(nearest, start_date, end_date)
+        idw_df        = interp_df if not args.fast else None
         if hist_baseline:
             console.print(f"   Histórico: {hist_baseline['n_years']} anos — "
                           f"prcp média {hist_baseline['prcp_mean_mm']} mm")
@@ -383,6 +553,30 @@ def main() -> int:
         hist_baseline=hist_baseline if "hist_baseline" in dir() else {},
         soil_data=soil_data,
     )
+
+    # ── Exportar Pipeline JSON ───────────────────────────────────────────────────
+    try:
+        _idw = idw_df if "idw_df" in dir() else None
+        pipeline_path = save_pipeline_json(
+            farm_name=args.farm_name,
+            event_type=args.problem,
+            crop_type=args.crop,
+            start_date=start_date,
+            end_date=end_date,
+            area_ha=area_ha,
+            centroid=centroid,
+            geometry=geometry,
+            analysis=analysis,
+            cop_data=cop_data,
+            pos_summ=pos_summ,
+            pos_vote=pos_vote,
+            soil_data=soil_data,
+            idw_df=_idw,
+            output_path=args.pipeline if args.pipeline else None,
+        )
+        console.print(f"\n[bold cyan]📦 Pipeline JSON salvo: {pipeline_path}[/bold cyan]")
+    except Exception as e:
+        console.print(f"[yellow]⚠ Erro ao salvar pipeline JSON: {e}[/yellow]")
 
     # ── Exportar DOCX ─────────────────────────────────────────────────────────
     try:

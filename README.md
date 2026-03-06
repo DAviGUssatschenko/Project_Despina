@@ -132,7 +132,7 @@ agricultural-claims-validator/
 
 ```bash
 # 1. Clone the repository
-https://github.com/DAviGUssatschenko/Project_Despina.git
+git clone https://github.com/DAviGUssatschenko/Project_Despina.git
 cd Project_Despina
 
 # 2. Create and activate a virtual environment

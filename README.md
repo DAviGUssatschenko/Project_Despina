@@ -1,4 +1,4 @@
-# 🌾 Agricultural Claims Validator
+# 🌾 Project Despina
 
 > **Poseidon · Copernicus · EMBRAPA** — Automated rural insurance claim validation using satellite imagery, weather station data, and soil analysis.
 

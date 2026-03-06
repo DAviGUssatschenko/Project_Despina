@@ -666,6 +666,23 @@ def main():
     try: geojson_data = json.loads(geojson_file.read())
     except Exception as e: st.error(f"Erro ao ler GeoJSON: {e}"); return
 
+    # ── Suporte ao formato pipeline (chave "meta" presente) ──
+    if "meta" in geojson_data and "geometry" in geojson_data:
+        meta = geojson_data["meta"]
+        geojson_data = {
+            "type": "Feature",
+            "geometry": geojson_data["geometry"],
+            "properties": {
+                "id":      meta.get("farm_name", "pipeline"),
+                "evento":  meta.get("event_type", "seca"),
+                "inicio":  meta.get("start_date"),
+                "fim":     meta.get("end_date"),
+                "cultura": meta.get("crop_type", ""),
+                "solo":    meta.get("soil_type", "default"),
+                "bioma":   meta.get("biome", ""),
+            }
+        }
+
     gtype = geojson_data.get("type")
     if   gtype == "FeatureCollection": all_features = geojson_data.get("features",[])
     elif gtype == "Feature":           all_features = [geojson_data]

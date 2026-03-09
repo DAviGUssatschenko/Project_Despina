@@ -1,5 +1,5 @@
 """
-modules/docx_exporter.py — profissional Layout 
+modules/docx_exporter.py — professional layout 
 Includes soil EMBRAPA section and fixes hist_baseline parameter.
 """
 from __future__ import annotations
@@ -36,22 +36,22 @@ HEX_SOLO_BG  = "F5EFE6"
 HEX_SOLO_HDR = "8B6340"
 
 EVENT_LABELS = {
-    "seca":    "Seca / Déficit Hídrico",
-    "chuva":   "Excesso de Chuva / Alagamento",
-    "geada":   "Geada",
-    "granizo": "Granizo / Tempestade",
+    "drought":  "Drought / Water Deficit",
+    "rainfall": "Excess Rainfall / Flooding",
+    "frost":    "Frost",
+    "hail":     "Hail / Severe Storm",
 }
 INDEX_META = {
-    "NDVI": "Índice de Vegetação (NDVI)",
-    "NDRE": "NDVI Red-Edge — estresse precoce",
-    "EVI":  "Índice de Vegetação Aprimorado (EVI)",
-    "NDWI": "Índice de Água na Vegetação (NDWI)",
-    "NDMI": "Índice de Umidade SWIR (NDMI)",
-    "BSI":  "Índice de Solo Exposto (BSI)",
-    "NBR":  "Razão de Queima Normalizada (NBR)",
-    "PSRI": "Índice de Senescência (PSRI)",
-    "CRI1": "Índice de Carotenóides (CRI1)",
-    "VHI":  "Índice de Saúde da Vegetação (VHI)",
+    "NDVI": "Vegetation Index (NDVI)",
+    "NDRE": "NDVI Red-Edge — early stress",
+    "EVI":  "Enhanced Vegetation Index (EVI)",
+    "NDWI": "Canopy Water Index (NDWI)",
+    "NDMI": "SWIR Moisture Index (NDMI)",
+    "BSI":  "Bare Soil Index (BSI)",
+    "NBR":  "Normalised Burn Ratio (NBR)",
+    "PSRI": "Senescence Index (PSRI)",
+    "CRI1": "Carotenoid Index (CRI1)",
+    "VHI":  "Vegetation Health Index (VHI)",
 }
 
 
@@ -166,7 +166,7 @@ def _add_footer(doc):
     para = ftr.paragraphs[0]
     para.clear()
     para.paragraph_format.space_before = Pt(4)
-    _run(para, "Poseidon-Copernicus-EMBRAPA Validator  —  Relatório de Sinistro Agrícola",
+    _run(para, "Poseidon-Copernicus-EMBRAPA Validator  —  Agricultural Insurance Claim Report",
          size=8, color=C_CINZA_CLR, italic=True)
     para.add_run("\t")
     r = para.add_run()
@@ -198,7 +198,7 @@ class DocxExporter:
 
     def __init__(
         self, event_type, crop_type, start_date, end_date, area_ha,
-        farm_name="Propriedade Rural", planting_date=None, centroid=None,
+        farm_name="Rural Property", planting_date=None, centroid=None,
     ):
         self.event_type    = event_type
         self.crop_type     = crop_type
@@ -208,7 +208,7 @@ class DocxExporter:
         self.farm_name     = farm_name
         self.planting_date = planting_date
         self.centroid      = centroid or {}
-        self.crop_params   = CROP_PARAMS.get(crop_type, CROP_PARAMS["soja"])
+        self.crop_params   = CROP_PARAMS.get(crop_type, CROP_PARAMS["soybean"])
         self.doc           = Document()
         for sec in self.doc.sections:
             sec.top_margin    = Cm(2.0)
@@ -232,30 +232,30 @@ class DocxExporter:
     ) -> str:
         self._cover()
 
-        self._sec("1. IDENTIFICAÇÃO DO SINISTRO")
+        self._sec("1. CLAIM IDENTIFICATION")
         self._ident()
 
-        self._sec("2. CONTEXTO ECONÔMICO")
+        self._sec("2. ECONOMIC CONTEXT")
         self._context()
 
-        self._sec("3. DADOS SATELITAIS — COPERNICUS / SENTINEL-2")
+        self._sec("3. SATELLITE DATA — COPERNICUS / SENTINEL-2")
         self._satellite(cop_data)
 
-        self._sec("4. DADOS METEOROLÓGICOS — REDE POSEIDON")
+        self._sec("4. WEATHER DATA — POSEIDON NETWORK")
         self._poseidon(pos_summ, pos_vote)
 
         #soil section — only displays if data is available.
         if soil_data and not soil_data.get("error"):
-            self._sec("5. ANÁLISE DE SOLO — EMBRAPA / APTIDÃO AGRÍCOLA")
+            self._sec("5. SOIL ANALYSIS — EMBRAPA / AGRICULTURAL SUITABILITY")
             self._soil(soil_data, analysis)
-            self._sec("6. CHECKLIST DE VALIDAÇÃO")
+            self._sec("6. VALIDATION CHECKLIST")
             self._checks(analysis)
-            self._sec("7. ESTIMATIVA DE PERDAS ECONÔMICAS")
+            self._sec("7. ESTIMATED ECONOMIC LOSSES")
             self._loss(analysis, hist_baseline or {})
         else:
-            self._sec("5. CHECKLIST DE VALIDAÇÃO")
+            self._sec("5. VALIDATION CHECKLIST")
             self._checks(analysis)
-            self._sec("6. ESTIMATIVA DE PERDAS ECONÔMICAS")
+            self._sec("6. ESTIMATED ECONOMIC LOSSES")
             self._loss(analysis, hist_baseline or {})
 
         self._verdict(analysis)
@@ -288,7 +288,7 @@ class DocxExporter:
         _shd(p, HEX_AZUL_ESC)
         p.paragraph_format.space_before = Pt(10)
         p.paragraph_format.space_after  = Pt(10)
-        _run(p, "RELATÓRIO DE VALIDAÇÃO DE SINISTRO AGRÍCOLA",
+        _run(p, "AGRICULTURAL INSURANCE CLAIM VALIDATION REPORT",
              bold=True, size=16, color=C_BRANCO)
         doc.add_paragraph()
         p = doc.add_paragraph()
@@ -296,7 +296,7 @@ class DocxExporter:
         _run(p, self.farm_name, bold=True, size=15, color=C_AZUL_ESC)
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        _run(p, self.crop_params["name_pt"], size=11, color=C_CINZA)
+        _run(p, self.crop_params["name_en"], size=11, color=C_CINZA)
         doc.add_paragraph()
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -314,7 +314,7 @@ class DocxExporter:
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         _para_bot_border(p, color=HEX_AZUL_HDR, sz="12")
-        _run(p, f"Gerado em {datetime.now().strftime('%d/%m/%Y às %H:%M')}",
+        _run(p, f"Generated on {datetime.now().strftime('%d/%m/%Y at %H:%M')}",
              size=9, color=C_CINZA_CLR, italic=True)
         doc.add_page_break()
 
@@ -324,17 +324,17 @@ class DocxExporter:
         doc.add_paragraph()
         tbl = doc.add_table(rows=1, cols=2)
         tbl.style = "Table Grid"
-        _hdr_row(tbl, ["Campo", "Informação"])
+        _hdr_row(tbl, ["Field", "Information"])
         _col_widths(tbl, [5.0, 10.5])
         fields = [
             ("Propriedade",   self.farm_name),
-            ("Cultura",       self.crop_params["name_pt"]),
-            ("Evento Alegado", EVENT_LABELS.get(self.event_type, self.event_type)),
-            ("Período",       f"{self.start_date.strftime('%d/%m/%Y')} a {self.end_date.strftime('%d/%m/%Y')}"),
-            ("Duração",       f"{(self.end_date - self.start_date).days + 1} dias"),
-            ("Área",          f"{self.area_ha:.1f} hectares"),
-            ("Centróide",     f"Lat {self.centroid.get('lat','N/D')} | Lon {self.centroid.get('lon','N/D')}"),
-            ("Data de Plantio", self.planting_date.strftime("%d/%m/%Y") if self.planting_date else "Não informada"),
+            ("Crop",       self.crop_params["name_en"]),
+            ("Alleged Event", EVENT_LABELS.get(self.event_type, self.event_type)),
+            ("Period",       f"{self.start_date.strftime('%d/%m/%Y')} a {self.end_date.strftime('%d/%m/%Y')}"),
+            ("Duration",       f"{(self.end_date - self.start_date).days + 1} days"),
+            ("Area",          f"{self.area_ha:.1f} hectares"),
+            ("Centroid",     f"Lat {self.centroid.get('lat','N/D')} | Lon {self.centroid.get('lon','N/D')}"),
+            ("Planting Date", self.planting_date.strftime("%d/%m/%Y") if self.planting_date else "Not provided"),
         ]
         for i, (k, v) in enumerate(fields):
             row = tbl.add_row()
@@ -354,11 +354,11 @@ class DocxExporter:
         p = doc.add_paragraph()
         p.paragraph_format.first_line_indent = Cm(0.8)
         _run(p, (
-            f"Lavoura de {cp['name_pt'].lower()} com produtividade média histórica de "
-            f"{cp['yield_avg_sacas_ha']} sc/ha (variação: {cp['yield_min_sacas_ha']}–"
-            f"{cp['yield_max_sacas_ha']} sc/ha). Para {self.area_ha:.0f} ha ao preço de "
-            f"{_brl(cp['price_brl_saca'])}/saca, a receita bruta esperada é de "
-            f"{_brl(cp['yield_avg_sacas_ha'] * self.area_ha * cp['price_brl_saca'])} (ref. CEPEA)."
+            f"{cp['name_en']} crop with average historical yield of "
+            f"{cp['yield_avg_bags_ha']} bags/ha (range: {cp['yield_min_bags_ha']}–"
+            f"{cp['yield_max_bags_ha']} bags/ha). For {self.area_ha:.0f} ha at "
+            f"{_brl(cp['price_brl_bag'])}/bag, expected gross revenue is "
+            f"{_brl(cp['yield_avg_bags_ha'] * self.area_ha * cp['price_brl_bag'])} (ref. CEPEA)."
         ), size=10)
 
     #satellite
@@ -367,7 +367,7 @@ class DocxExporter:
         doc.add_paragraph()
         tbl = doc.add_table(rows=1, cols=6)
         tbl.style = "Table Grid"
-        _hdr_row(tbl, ["Índice", "Descrição", "Baseline", "Evento", "Δ%", "Status"])
+        _hdr_row(tbl, ["Index", "Description", "Baseline", "Event", "Δ%", "Status"])
         _col_widths(tbl, [1.4, 5.8, 2.0, 2.0, 1.6, 2.7])
         for i, (idx, desc) in enumerate(INDEX_META.items()):
             if idx not in cop or "error" in cop[idx]:
@@ -381,8 +381,8 @@ class DocxExporter:
             p_s  = f"{apct:+.1f}%" if apct is not None else "N/D"
             if apct is not None:
                 drop = -apct
-                if   drop >= 20: status, sc = "CRÍTICO ▼", C_VERMELHO
-                elif drop >= 10: status, sc = "BAIXO ↓",   C_AMARELO
+                if   drop >= 20: status, sc = "CRITICAL ▼", C_VERMELHO
+                elif drop >= 10: status, sc = "LOW ↓",   C_AMARELO
                 else:            status, sc = "NORMAL",    C_VERDE
             else:
                 status, sc = "N/D", C_CINZA
@@ -395,7 +395,7 @@ class DocxExporter:
             tci = cop["VHI"].get("tci", "N/D")
             if   vhi < 35: vc, lbl, bg = C_VERMELHO, "ESTRESSE SEVERO",    HEX_VERM_BG
             elif vhi < 50: vc, lbl, bg = C_AMARELO,  "ESTRESSE MODERADO",  HEX_AMAR_BG
-            else:          vc, lbl, bg = C_VERDE,    "VEGETAÇÃO SAUDÁVEL", HEX_VERDE_BG
+            else:          vc, lbl, bg = C_VERDE,    "HEALTHY VEGETATION", HEX_VERDE_BG
             p = doc.add_paragraph()
             _shd(p, bg)
             p.paragraph_format.space_before = Pt(4)
@@ -418,16 +418,16 @@ class DocxExporter:
             pp      = pt / np_ * 100 if np_ else 0
             tbl = doc.add_table(rows=1, cols=3)
             tbl.style = "Table Grid"
-            _hdr_row(tbl, ["Variável Meteorológica", "Valor Medido", "Referência / Contexto"])
+            _hdr_row(tbl, ["Weather Variable", "Measured Value", "Reference / Context"])
             _col_widths(tbl, [6.0, 3.5, 6.0])
             rows_d = [
-                ("Precipitação acumulada",    f"{pt:.1f} mm",                            f"{pp:.0f}% da normal ({np_:.0f} mm)"),
-                ("Temperatura média",         f"{summary.get('tavg_mean_c',0):.2f} °C",  f"Normal: {normals.get('tavg_c','N/D')} °C"),
-                ("Temperatura máxima abs.",   f"{summary.get('tmax_abs_c',0):.2f} °C",   "—"),
-                ("Temperatura mínima abs.",   f"{summary.get('tmin_abs_c',0):.2f} °C",   "—"),
-                ("Umidade relativa média",    f"{summary.get('rh_avg_mean_pct',0):.1f}%", "—"),
-                ("Dias com chuva >1 mm",      str(summary.get("prcp_days", "N/D")),       "—"),
-                ("Vento máximo",              f"{summary.get('wspd_max_kmh',0):.1f} km/h","—"),
+                ("Cumulative precipitation",    f"{pt:.1f} mm",                            f"{pp:.0f}% of normal ({np_:.0f} mm)"),
+                ("Average temperature",         f"{summary.get('tavg_mean_c',0):.2f} °C",  f"Normal: {normals.get('tavg_c','N/D')} °C"),
+                ("Abs. max. temperature",   f"{summary.get('tmax_abs_c',0):.2f} °C",   "—"),
+                ("Abs. min. temperature",   f"{summary.get('tmin_abs_c',0):.2f} °C",   "—"),
+                ("Average relative humidity",    f"{summary.get('rh_avg_mean_pct',0):.1f}%", "—"),
+                ("Rainy days >1 mm",      str(summary.get("prcp_days", "N/D")),       "—"),
+                ("Max. wind speed",              f"{summary.get('wspd_max_kmh',0):.1f} km/h","—"),
             ]
             for i, (k, v, ctx) in enumerate(rows_d):
                 row = tbl.add_row()
@@ -446,27 +446,27 @@ class DocxExporter:
         votes  = vote.get("votes", {})
         bg     = HEX_VERDE_BG if passed else HEX_VERM_BG
         cor    = C_VERDE if passed else C_VERMELHO
-        ico    = "✔ APROVADO" if passed else "✘ REPROVADO"
+        ico    = "✔ APPROVED" if passed else "✘ REJECTED"
         p = doc.add_paragraph()
         _shd(p, bg)
         p.paragraph_format.space_before = Pt(4)
         p.paragraph_format.space_after  = Pt(4)
-        _run(p, f"  Score Climático IDW Poseidon: {ws:.0f}/100 — sinal {sl}  |  {ico}",
+        _run(p, f"  Poseidon IDW Climate Score: {ws:.0f}/100 — signal {sl}  |  {ico}",
              bold=True, size=10, color=cor)
         if votes:
             doc.add_paragraph()
             tbl2 = doc.add_table(rows=1, cols=4)
             tbl2.style = "Table Grid"
-            _hdr_row(tbl2, ["Direção", "Ponto ID", "Resultado", "Detalhes"])
+            _hdr_row(tbl2, ["Direction", "Point ID", "Result", "Details"])
             _col_widths(tbl2, [2.0, 2.0, 3.0, 8.5])
-            dl = {"N": "Norte ↑", "S": "Sul ↓", "L": "Leste →", "O": "Oeste ←"}
+            dl = {"N": "North ↑", "S": "South ↓", "E": "East →", "W": "West ←"}
             for i, (direction, v) in enumerate(votes.items()):
                 ok = v.get("confirmed", False)
                 c2 = C_VERDE if ok else C_VERMELHO
                 _data_row(tbl2, [
                     dl.get(direction, direction),
                     str(v.get("point_id", "N/D")),
-                    "CONFIRMA ✔" if ok else "NÃO CONFIRMA ✘",
+                    "CONFIRMED ✔" if ok else "NOT CONFIRMED ✘",
                     v.get("reason", "")[:90],
                 ], alt=(i % 2 == 1), colors=[None, None, c2, None])
         doc.add_paragraph()
@@ -489,21 +489,21 @@ class DocxExporter:
         #fitness table
         tbl = doc.add_table(rows=1, cols=2)
         tbl.style = "Table Grid"
-        _hdr_row(tbl, ["Atributo do Solo", "Valor / Descrição"], bg=HEX_SOLO_HDR)
+        _hdr_row(tbl, ["Soil Attribute", "Value / Description"], bg=HEX_SOLO_HDR)
         _col_widths(tbl, [5.5, 10.0])
         fields = [
-            ("Classe de Aptidão EMBRAPA",   f"Classe {dominant_class} — {apt_label}"),
-            ("Aptidão para Lavouras",        "APTA ✔" if suitable else "INAPTA ✘"),
-            ("Solo Dominante",              f"{soil_code} | {soil_name}"),
-            ("Participação na Área",         f"{dom_pct:.0f}% da área do talhão"),
-            ("Área Classificada",            f"{cl_pct:.0f}%"),
-            ("Descrição",                    apt_desc),
+            ("EMBRAPA Suitability Class",   f"Class {dominant_class} — {apt_label}"),
+            ("Crop Suitability",        "SUITABLE ✔" if suitable else "UNSUITABLE ✘"),
+            ("Dominant Soil",              f"{soil_code} | {soil_name}"),
+            ("Area Share",         f"{dom_pct:.0f}% of field area"),
+            ("Classified Area",            f"{cl_pct:.0f}%"),
+            ("Description",                    apt_desc),
         ]
         for i, (k, v) in enumerate(fields):
             row = tbl.add_row()
             alt = (i % 2 == 1)
-            cor_v = C_VERDE if (k == "Aptidão para Lavouras" and suitable) else \
-                    C_VERMELHO if (k == "Aptidão para Lavouras" and not suitable) else None
+            cor_v = C_VERDE if (k == "Crop Suitability" and suitable) else \
+                    C_VERMELHO if (k == "Crop Suitability" and not suitable) else None
             for j, (cell, txt) in enumerate(zip(row.cells, [k, v])):
                 _shd(cell, HEX_SOLO_BG if alt else "FFFFFF")
                 _cell_margins(cell)
@@ -517,20 +517,20 @@ class DocxExporter:
             ks  = water.get("Ks",  "N/D")
             fc  = water.get("fc",  "N/D")
             wp  = water.get("wp",  "N/D")
-            ret = water.get("retencao", "N/D")
-            tex = water.get("textura",  "N/D")
+            ret = water.get("retention", "N/D")
+            tex = water.get("texture",  "N/D")
 
             tbl2 = doc.add_table(rows=1, cols=3)
             tbl2.style = "Table Grid"
-            _hdr_row(tbl2, ["Propriedade Hídrica", "Valor", "Interpretação"], bg=HEX_SOLO_HDR)
+            _hdr_row(tbl2, ["Hydraulic Property", "Value", "Interpretation"], bg=HEX_SOLO_HDR)
             _col_widths(tbl2, [5.5, 3.0, 7.0])
             hid_rows = [
-                ("AWC — Água Disponível",    f"{awc} mm/m",  "Capacidade de armazenamento disponível para as plantas"),
-                ("Ks — Condutividade Hid.", f"{ks} mm/h",   "Velocidade de drenagem saturada"),
-                ("Capacidade de Campo",      f"{fc}%",       "Teor de água retido após drenagem livre"),
-                ("Ponto de Murcha",          f"{wp}%",       "Teor mínimo para sobrevivência das plantas"),
-                ("Retenção Hídrica",         ret,            "Classificação geral de retenção"),
-                ("Textura",                  tex,            "Granulometria dominante do solo"),
+                ("AWC — Plant-Available Water",    f"{awc} mm/m",  "Water storage capacity available to plants"),
+                ("Ks — Hydraulic Conductivity", f"{ks} mm/h",   "Saturated drainage speed"),
+                ("Field Capacity",      f"{fc}%",       "Water content retained after free drainage"),
+                ("Wilting Point",          f"{wp}%",       "Minimum water content for plant survival"),
+                ("Water Retention",         ret,            "General retention classification"),
+                ("Texture",                  tex,            "Granulometria dominante do solo"),
             ]
             for i, (k, v, ctx) in enumerate(hid_rows):
                 row = tbl2.add_row()
@@ -547,7 +547,7 @@ class DocxExporter:
         if len(soil_types) > 1:
             tbl3 = doc.add_table(rows=1, cols=4)
             tbl3.style = "Table Grid"
-            _hdr_row(tbl3, ["Solo", "% da Área", "Aptidão", "AWC (mm/m)"], bg=HEX_SOLO_HDR)
+            _hdr_row(tbl3, ["Soil", "% Area", "Suitability", "AWC (mm/m)"], bg=HEX_SOLO_HDR)
             _col_widths(tbl3, [7.5, 2.5, 3.0, 2.5])
             for i, st in enumerate(soil_types):
                 apt_c  = st.get("apt_class")
@@ -562,7 +562,7 @@ class DocxExporter:
                 ], alt=(i % 2 == 1), colors=[None, None, cor, None])
             doc.add_paragraph()
 
-        #solo performance × event
+        #soil performance × event
         soil_check = analysis.get("soil_check", {})
         amplifier  = soil_check.get("amplifier", 1.0) if soil_check else 1.0
         if amplifier != 1.0:
@@ -574,8 +574,8 @@ class DocxExporter:
             p.paragraph_format.space_after  = Pt(4)
             action = "AMPLIFICA" if amplifier > 1.0 else "ATENUA"
             _run(p, (
-                f"  Interação Solo × Evento: solo {action} o dano em {amplifier:.2f}x "
-                f"(retenção: {soil_check.get('retencao','N/D')} | "
+                f"  Soil × Event Interaction: soil {action} damage by {amplifier:.2f}x "
+                f"(retention: {soil_check.get('retention','N/D')} | "
                 f"AWC: {soil_check.get('AWC','N/D')} mm/m)"
             ), bold=True, size=10, color=cor_amp)
         doc.add_paragraph()
@@ -587,7 +587,7 @@ class DocxExporter:
         doc.add_paragraph()
         tbl = doc.add_table(rows=1, cols=4)
         tbl.style = "Table Grid"
-        _hdr_row(tbl, ["Critério de Validação", "Resultado Obtido", "Peso", "OK?"])
+        _hdr_row(tbl, ["Validation Criterion", "Result", "Weight", "OK?"])
         _col_widths(tbl, [6.5, 6.0, 1.5, 1.5])
         for i, chk in enumerate(checks):
             ok  = chk.get("passed", False)
@@ -596,13 +596,13 @@ class DocxExporter:
                 chk.get("name", ""),
                 chk.get("value", ""),
                 f"{chk.get('weight', 0):.1f}",
-                "SIM ✔" if ok else "NÃO ✘",
+                "YES ✔" if ok else "NO ✘",
             ], alt=(i % 2 == 1), colors=[None, None, None, cor])
         doc.add_paragraph()
         sm = analysis.get("summary", {})
         p  = doc.add_paragraph()
         _run(p, (
-            f"Critérios: {sm.get('checks_total',0)}  |  "
+            f"Criteria: {sm.get('checks_total',0)}  |  "
             f"Aprovados: {sm.get('checks_passed',0)}  |  "
             f"Score: {sm.get('score_raw','N/D')}"
         ), bold=True, size=10, color=C_AZUL_ESC)
@@ -617,37 +617,37 @@ class DocxExporter:
         doc.add_paragraph()
         tbl = doc.add_table(rows=1, cols=2)
         tbl.style = "Table Grid"
-        _hdr_row(tbl, ["Indicador Econômico", "Valor"])
+        _hdr_row(tbl, ["Economic Indicator", "Value"])
         _col_widths(tbl, [8.5, 7.0])
 
         fields = [
-            ("Área total avaliada",          f"{loss.get('area_ha', 0):.1f} ha"),
-            ("Produtividade esperada",        f"{loss.get('expected_yield_sacas_ha', 0)} sc/ha"),
+            ("Total assessed area",          f"{loss.get('area_ha', 0):.1f} ha"),
+            ("Expected yield",        f"{loss.get('expected_yield_bags_ha', 0)} bags/ha"),
         ]
 
         #local history
         hist = loss.get("hist_baseline") or hist_baseline
-        if hist and hist.get("local_yield_est_sacas_ha"):
+        if hist and hist.get("local_yield_est_bags_ha"):
             fields.append((
-                f"Produtividade histórica local ({hist.get('n_years','?')} anos)",
-                f"~{hist['local_yield_est_sacas_ha']:.1f} sc/ha ({hist.get('years_used','')})",
+                f"Local historical yield ({hist.get('n_years','?')} years)",
+                f"~{hist['local_yield_est_bags_ha']:.1f} sc/ha ({hist.get('years_used','')})",
             ))
 
         #solo factor
         soil_amp = loss.get("soil_amplifier")
         if soil_amp:
             amp = soil_amp["amplifier"]
-            action = "Amplificação" if amp > 1.0 else "Atenuação"
+            action = "amplified" if amp > 1.0 else "mitigated"
             fields.append((
                 f"Fator de solo ({action.lower()})",
                 f"{amp:.2f}x — {soil_amp.get('soil_name','N/D')} (AWC {soil_amp.get('AWC','N/D')} mm/m)",
             ))
 
         fields += [
-            ("Produtividade estimada real",   f"{loss.get('estimated_yield_sacas_ha', 0)} sc/ha"),
+            ("Estimated actual yield",   f"{loss.get('estimated_yield_bags_ha', 0)} bags/ha"),
             ("Queda de produtividade",        _pct(loss.get("yield_loss_pct", 0))),
-            ("Perda total em sacas",          f"{loss.get('yield_loss_total_sacas', 0):,.0f} sacas"),
-            ("Preço referência (CEPEA)",      f"{_brl(loss.get('price_brl_saca', 0))}/saca"),
+            ("Perda total em bags",          f"{loss.get('yield_loss_total_sacas', 0):,.0f} bags"),
+            ("Reference price (CEPEA)",      f"{_brl(loss.get('price_brl_bag', 0))}/bag"),
             ("Receita bruta esperada",        _brl(loss.get("expected_revenue_brl", 0))),
             ("Receita estimada com perdas",   _brl(loss.get("estimated_revenue_brl", 0))),
         ]
@@ -675,9 +675,9 @@ class DocxExporter:
         comp = loss.get("loss_frac_components", {})
         p = doc.add_paragraph()
         _run(p, (
-            f"Componentes: Déficit climático {comp.get('climate_loss',0):.0f}%  |  "
+            f"Components: Climate deficit {comp.get('climate_loss',0):.0f}%  |  "
             f"Anomalia NDVI {comp.get('ndvi_loss',0):.0f}%  |  "
-            f"Sensibilidade fenológica {comp.get('phase_sensitivity',0):.0f}%  |  "
+            f"Phenological sensitivity {comp.get('phase_sensitivity',0):.0f}%  |  "
             f"Amplificador solo {comp.get('soil_amplifier',1.0):.2f}x"
         ), size=9, color=C_CINZA, italic=True)
         doc.add_paragraph()
@@ -685,13 +685,13 @@ class DocxExporter:
     #verdict
     def _verdict(self, analysis):
         doc     = self.doc
-        verdict = analysis.get("verdict", "INCONCLUSIVO")
+        verdict = analysis.get("verdict", "INCONCLUSIVE")
         conf    = analysis.get("confidence", 0)
         loss    = analysis.get("loss_estimate", {})
         cm = {
-            "CONFIRMADO":     (C_VERDE,    HEX_VERDE_BG, "✔ SINISTRO CONFIRMADO"),
-            "INCONCLUSIVO":   (C_AMARELO,  HEX_AMAR_BG,  "⚠  INCONCLUSIVO"),
-            "NÃO CONFIRMADO": (C_VERMELHO, HEX_VERM_BG,  "✘ SINISTRO NÃO CONFIRMADO"),
+            "CONFIRMED":     (C_VERDE,    HEX_VERDE_BG, "✔ CLAIM CONFIRMED"),
+            "INCONCLUSIVE":   (C_AMARELO,  HEX_AMAR_BG,  "⚠  INCONCLUSIVE"),
+            "NOT CONFIRMED": (C_VERMELHO, HEX_VERM_BG,  "✘ CLAIM NOT CONFIRMED"),
         }
         cor, bg, label = cm.get(verdict, (C_CINZA, "EEEEEE", verdict))
         doc.add_paragraph()
@@ -706,7 +706,7 @@ class DocxExporter:
         p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p2.paragraph_format.space_before = Pt(2)
         p2.paragraph_format.space_after  = Pt(4)
-        _run(p2, f"Nível de Confiança: {conf:.0f}%", bold=True, size=12, color=C_AZUL_ESC)
+        _run(p2, f"Confidence Level: {conf:.0f}%", bold=True, size=12, color=C_AZUL_ESC)
         #severity
         idw = analysis.get("idw_score", 0)
         sev = analysis.get("severity", "")
@@ -722,7 +722,7 @@ class DocxExporter:
         pi    = analysis.get("phase_info", {})
         phase = pi.get("phase", "desconhecida")
         sens  = pi.get("sensitivity", 0) * 100
-        crop  = self.crop_params["name_pt"]
+        crop  = self.crop_params["name_en"]
         p     = doc.add_paragraph()
         p.paragraph_format.first_line_indent = Cm(0.8)
         soil_check = analysis.get("soil_check", {})
@@ -733,26 +733,26 @@ class DocxExporter:
                 f" Solo {soil_check.get('soil_name','N/D')} "
                 f"({'amplificou' if amp > 1.0 else 'atenuou'} o dano em {amp:.2f}x)."
             )
-        if verdict == "CONFIRMADO":
+        if verdict == "CONFIRMED":
             _run(p, (
-                f"Os dados satelitais (Copernicus/Sentinel-2) e os registros climáticos "
-                f"(Rede Poseidon) apresentam evidências convergentes de {el}. "
-                f"Fase fenológica: "
+                f"Satellite data (Copernicus/Sentinel-2) and climate records "
+                f"(Poseidon Network) present converging evidence of {el}. "
+                f"Phenological phase: "
             ))
             _run(p, phase.upper(), bold=True, color=C_AZUL_ESC)
             _run(p, f" (sensibilidade {sens:.0f}%).{soil_note} Perda financeira estimada: ")
             _run(p, _brl(loss.get("financial_loss_brl", 0)), bold=True, color=C_VERMELHO)
-            _run(p, f". Confiança: {conf:.0f}%.")
-        elif verdict == "INCONCLUSIVO":
+            _run(p, f". Confidence: {conf:.0f}%.)
+        elif verdict == "INCONCLUSIVE":
             _run(p, (
-                f"Sinais parciais de {el} detectados, sem evidência suficiente para "
-                f"confirmação definitiva (confiança: {conf:.0f}%).{soil_note} "
+                f"Partial signals of {el} detected, without sufficient evidence for "
+                f"definitive confirmation (confidence: {conf:.0f}%).{soil_note} "
                 f"Recomenda-se vistoria presencial."
             ))
         else:
             _run(p, (
-                f"Os dados analisados não corroboram a alegação de {el} "
-                f"({conf:.0f}% de confiança).{soil_note} Sinistro não validado."
+                f"Analysed data do not corroborate the claim of {el} "
+                f"({conf:.0f}% confidence).{soil_note} Claim not validated."
             ))
         doc.add_paragraph()
 
@@ -763,11 +763,11 @@ class DocxExporter:
         _para_bot_border(p, color="CCCCCC", sz="4")
         solo_str = ""
         if soil_data and not soil_data.get("error"):
-            solo_str = " Aptidão agrícola: EMBRAPA/IBGE."
+            solo_str = " Agricultural suitability: EMBRAPA/IBGE."
         _run(p, (
-            "Relatório gerado automaticamente pelo Sistema Poseidon-Copernicus-EMBRAPA Validator. "
+            "Report automatically generated by the Poseidon-Copernicus-EMBRAPA Validator System. "
             "Dados satelitais: Copernicus/Sentinel-2 (CDSE). "
-            "Dados climáticos: Rede Poseidon."
+            "Climate data: Poseidon Network."
             f"{solo_str} "
-            "Valores financeiros: referências CEPEA. Caráter técnico e estimativo."
+            "Financial values: CEPEA reference prices. Technical and estimative in nature."
         ), size=8, color=C_CINZA_CLR, italic=True)

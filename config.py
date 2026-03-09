@@ -1,19 +1,19 @@
 """
-config.py — Parâmetros, thresholds e constantes do sistema
+config.py — Parameters, thresholds and system constants
 """
 
 import os
 from pathlib import Path
 
-# Carrega variáveis do arquivo .env se existir (sem obrigar dependência em prod)
+# Loads variables from the .env file if it exists (without requiring the dependency in prod)
 try:
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).parent / ".env")
 except ImportError:
-    pass  # python-dotenv não instalado — variáveis devem vir do ambiente (Docker, CI, etc.)
+    pass  # python-dotenv not installed — variables must come from the environment (Docker, CI, etc.)
 
 # ─────────────────────────────────────────────
-# POSEIDON — Tabelas do banco PostgreSQL
+# POSEIDON — PostgreSQL database tables
 # ─────────────────────────────────────────────
 POSEIDON_TABLES = {
     "coordinates": "poseidon.points_coordinates",
@@ -23,7 +23,7 @@ POSEIDON_TABLES = {
 POSEIDON_GRID_STEP = 0.09009
 
 # ─────────────────────────────────────────────
-# CREDENCIAIS COPERNICUS
+# COPERNICUS CREDENTIALS
 # ─────────────────────────────────────────────
 CDSE_CLIENT_ID     = os.getenv("CDSE_CLIENT_ID", "")
 CDSE_CLIENT_SECRET = os.getenv("CDSE_CLIENT_SECRET", "")
@@ -37,7 +37,7 @@ MAX_CLOUD_COVER       = 20
 BASELINE_LOOKBACK_DAYS = 60
 
 # ─────────────────────────────────────────────
-# EMBRAPA — Dados de Solo
+# EMBRAPA — Soil data
 # ─────────────────────────────────────────────
 _BASE_DIR = Path(__file__).parent
 EMBRAPA_SHAPEFILE = os.getenv(
@@ -45,45 +45,45 @@ EMBRAPA_SHAPEFILE = os.getenv(
     str(_BASE_DIR / "data" / "embrapa" / "aptagr_bra.shp"),
 )
 
-# Diretório de saída para imagens de índices (usado em appv25.py)
+# Output directory for index images (used in appv25.py)
 OUTPUT_INDICES_DIR = Path(
     os.getenv("OUTPUT_INDICES_DIR", str(_BASE_DIR / "output_indices"))
 )
 
-# Classes de aptidão agrícola EMBRAPA
+# EMBRAPA agricultural suitability classes
 SOIL_APTITUDE_CLASSES = {
-    1: {"label": "Boa",           "suitable": True,  "description": "Terras de boa aptidão para lavouras"},
-    2: {"label": "Regular",       "suitable": True,  "description": "Terras de aptidão regular para lavouras"},
-    3: {"label": "Restrita",      "suitable": True,  "description": "Terras de aptidão restrita para lavouras"},
-    4: {"label": "Inapta (past)", "suitable": False, "description": "Inapta para lavouras — indicada para pastagem"},
-    5: {"label": "Inapta (sil)",  "suitable": False, "description": "Inapta para lavouras — indicada para silvicultura"},
-    6: {"label": "Preservação",   "suitable": False, "description": "Terras indicadas para preservação ambiental"},
+    1: {"label": "Good",               "suitable": True,  "description": "Land with good suitability for crops"},
+    2: {"label": "Regular",            "suitable": True,  "description": "Land with regular suitability for crops"},
+    3: {"label": "Restricted",         "suitable": True,  "description": "Land with restricted suitability for crops"},
+    4: {"label": "Unsuitable (past)",  "suitable": False, "description": "Unsuitable for crops — recommended for pasture"},
+    5: {"label": "Unsuitable (silv)",  "suitable": False, "description": "Unsuitable for crops — recommended for forestry"},
+    6: {"label": "Preservation",       "suitable": False, "description": "Land recommended for environmental preservation"},
 }
 
-# Propriedades hídricas por tipo de solo
+# Water properties by soil type
 SOIL_WATER_PROPERTIES = {
-    "Latossolo Vermelho":         {"AWC": 120, "Ks": 30, "fc": 35, "wp": 15, "retencao": "média",       "textura": "argilosa"},
-    "Latossolo Amarelo":          {"AWC": 100, "Ks": 25, "fc": 32, "wp": 14, "retencao": "média",       "textura": "argilo-arenosa"},
-    "Latossolo Vermelho-Amarelo": {"AWC": 110, "Ks": 28, "fc": 33, "wp": 14, "retencao": "média",       "textura": "argilosa"},
-    "Argissolo Vermelho":         {"AWC":  80, "Ks":  8, "fc": 30, "wp": 18, "retencao": "alta",        "textura": "argilosa"},
-    "Argissolo Amarelo":          {"AWC":  90, "Ks": 10, "fc": 31, "wp": 17, "retencao": "alta",        "textura": "argilo-arenosa"},
-    "Nitossolo Vermelho":         {"AWC": 130, "Ks": 15, "fc": 38, "wp": 18, "retencao": "alta",        "textura": "muito argilosa"},
-    "Cambissolo Húmico":          {"AWC":  70, "Ks": 20, "fc": 28, "wp": 13, "retencao": "média-baixa", "textura": "média"},
-    "Cambissolo Háplico":         {"AWC":  60, "Ks": 18, "fc": 26, "wp": 12, "retencao": "média-baixa", "textura": "média"},
-    "Neossolo Litólico":          {"AWC":  30, "Ks": 50, "fc": 20, "wp":  8, "retencao": "baixa",       "textura": "arenosa"},
-    "Neossolo Quartzarênico":     {"AWC":  40, "Ks": 80, "fc": 18, "wp":  5, "retencao": "muito baixa", "textura": "arenosa"},
-    "Neossolo Flúvico":           {"AWC": 100, "Ks": 15, "fc": 30, "wp": 15, "retencao": "alta",        "textura": "média"},
-    "Gleissolo Háplico":          {"AWC": 150, "Ks":  2, "fc": 45, "wp": 25, "retencao": "muito alta",  "textura": "muito argilosa"},
-    "Gleissolo Melânico":         {"AWC": 160, "Ks":  1, "fc": 48, "wp": 26, "retencao": "muito alta",  "textura": "muito argilosa"},
-    "Espodossolo":                {"AWC":  50, "Ks": 40, "fc": 22, "wp":  8, "retencao": "baixa",       "textura": "arenosa"},
-    "Planossolo Háplico":         {"AWC":  80, "Ks":  3, "fc": 32, "wp": 18, "retencao": "muito alta",  "textura": "argilosa"},
-    "Vertissolo":                 {"AWC": 160, "Ks":  1, "fc": 48, "wp": 28, "retencao": "muito alta",  "textura": "muito argilosa"},
-    "Chernossolo":                {"AWC": 140, "Ks": 12, "fc": 40, "wp": 20, "retencao": "alta",        "textura": "argilosa"},
-    "Organossolo":                {"AWC": 200, "Ks":  2, "fc": 60, "wp": 30, "retencao": "muito alta",  "textura": "orgânica"},
-    "default":                    {"AWC": 100, "Ks": 20, "fc": 30, "wp": 15, "retencao": "média",       "textura": "média"},
+    "Latossolo Vermelho":         {"AWC": 120, "Ks": 30, "fc": 35, "wp": 15, "retention": "medium",       "texture": "clayey"},
+    "Latossolo Amarelo":          {"AWC": 100, "Ks": 25, "fc": 32, "wp": 14, "retention": "medium",       "texture": "clay-sandy"},
+    "Latossolo Vermelho-Amarelo": {"AWC": 110, "Ks": 28, "fc": 33, "wp": 14, "retention": "medium",       "texture": "clayey"},
+    "Argissolo Vermelho":         {"AWC":  80, "Ks":  8, "fc": 30, "wp": 18, "retention": "high",         "texture": "clayey"},
+    "Argissolo Amarelo":          {"AWC":  90, "Ks": 10, "fc": 31, "wp": 17, "retention": "high",         "texture": "clay-sandy"},
+    "Nitossolo Vermelho":         {"AWC": 130, "Ks": 15, "fc": 38, "wp": 18, "retention": "high",         "texture": "very clayey"},
+    "Cambissolo Húmico":          {"AWC":  70, "Ks": 20, "fc": 28, "wp": 13, "retention": "medium-low",   "texture": "medium"},
+    "Cambissolo Háplico":         {"AWC":  60, "Ks": 18, "fc": 26, "wp": 12, "retention": "medium-low",   "texture": "medium"},
+    "Neossolo Litólico":          {"AWC":  30, "Ks": 50, "fc": 20, "wp":  8, "retention": "low",          "texture": "sandy"},
+    "Neossolo Quartzarênico":     {"AWC":  40, "Ks": 80, "fc": 18, "wp":  5, "retention": "very low",     "texture": "sandy"},
+    "Neossolo Flúvico":           {"AWC": 100, "Ks": 15, "fc": 30, "wp": 15, "retention": "high",         "texture": "medium"},
+    "Gleissolo Háplico":          {"AWC": 150, "Ks":  2, "fc": 45, "wp": 25, "retention": "very high",    "texture": "very clayey"},
+    "Gleissolo Melânico":         {"AWC": 160, "Ks":  1, "fc": 48, "wp": 26, "retention": "very high",    "texture": "very clayey"},
+    "Espodossolo":                {"AWC":  50, "Ks": 40, "fc": 22, "wp":  8, "retention": "low",          "texture": "sandy"},
+    "Planossolo Háplico":         {"AWC":  80, "Ks":  3, "fc": 32, "wp": 18, "retention": "very high",    "texture": "clayey"},
+    "Vertissolo":                 {"AWC": 160, "Ks":  1, "fc": 48, "wp": 28, "retention": "very high",    "texture": "very clayey"},
+    "Chernossolo":                {"AWC": 140, "Ks": 12, "fc": 40, "wp": 20, "retention": "high",         "texture": "clayey"},
+    "Organossolo":                {"AWC": 200, "Ks":  2, "fc": 60, "wp": 30, "retention": "very high",    "texture": "organic"},
+    "default":                    {"AWC": 100, "Ks": 20, "fc": 30, "wp": 15, "retention": "medium",       "texture": "medium"},
 }
 
-# Mapeamento de prefixo de código EMBRAPA → nome completo em SOIL_WATER_PROPERTIES
+# Mapping from EMBRAPA code prefix → full name in SOIL_WATER_PROPERTIES
 SOIL_CODE_ALIASES = {
     "lva":  "Latossolo Vermelho-Amarelo",
     "lv":   "Latossolo Vermelho",
@@ -105,44 +105,44 @@ SOIL_CODE_ALIASES = {
     "oj":   "Organossolo",
 }
 
-# Fator de amplificação do dano por tipo de solo e evento
+# Damage amplification factor by soil type and event
 SOIL_EVENT_AMPLIFIER = {
-    "seca": {
-        "muito baixa": 1.35,
-        "baixa":       1.20,
-        "média-baixa": 1.10,
-        "média":       1.00,
-        "alta":        0.90,
-        "muito alta":  0.80,
+    "drought": {
+        "very low": 1.35,
+        "low":       1.20,
+        "medium-low": 1.10,
+        "medium":       1.00,
+        "high":        0.90,
+        "very high":  0.80,
     },
-    "chuva": {
-        "muito baixa": 0.75,
-        "baixa":       0.80,
-        "média-baixa": 0.95,
-        "média":       1.00,
-        "alta":        1.15,
-        "muito alta":  1.40,
+    "rainfall": {
+        "very low": 0.75,
+        "low":       0.80,
+        "medium-low": 0.95,
+        "medium":       1.00,
+        "high":        1.15,
+        "very high":  1.40,
     },
-    "geada": {
-        "muito baixa": 1.05,
-        "baixa":       1.02,
-        "média-baixa": 1.00,
-        "média":       1.00,
-        "alta":        0.98,
-        "muito alta":  0.95,
+    "frost": {
+        "very low": 1.05,
+        "low":       1.02,
+        "medium-low": 1.00,
+        "medium":       1.00,
+        "high":        0.98,
+        "very high":  0.95,
     },
-    "granizo": {
-        "muito baixa": 1.10,
-        "baixa":       1.05,
-        "média-baixa": 1.00,
-        "média":       1.00,
-        "alta":        1.00,
-        "muito alta":  1.05,
+    "hail": {
+        "very low": 1.10,
+        "low":       1.05,
+        "medium-low": 1.00,
+        "medium":       1.00,
+        "high":        1.00,
+        "very high":  1.05,
     },
 }
 
 # ─────────────────────────────────────────────
-# ÍNDICES SENTINEL-2 — Evalscripts
+# SENTINEL-2 INDEX — Evalscripts
 # ─────────────────────────────────────────────
 EVALSCRIPTS = {
     "NDVI": """
@@ -310,10 +310,10 @@ function evaluatePixel(s) {
 }
 
 # ─────────────────────────────────────────────
-# THRESHOLDS DE VALIDAÇÃO
+# VALIDATION THRESHOLDS
 # ─────────────────────────────────────────────
 VALIDATION_THRESHOLDS = {
-    "seca": {
+    "drought": {
         "poseidon": {
             "prcp_deficit_pct": 40,
             "tavg_anomaly_c":    2.0,
@@ -327,7 +327,7 @@ VALIDATION_THRESHOLDS = {
             "vhi_critical":    40.0,
         }
     },
-    "chuva": {
+    "rainfall": {
         "poseidon": {
             "prcp_excess_pct":      150,
             "wspd_max_threshold":    30.0,
@@ -339,7 +339,7 @@ VALIDATION_THRESHOLDS = {
             "bsi_increase":     0.10,
         }
     },
-    "geada": {
+    "frost": {
         "poseidon": {
             "tmin_threshold":   2.0,
             "consecutive_days": 2,
@@ -350,7 +350,7 @@ VALIDATION_THRESHOLDS = {
             "ndre_drop_pct":   35,
         }
     },
-    "granizo": {
+    "hail": {
         "poseidon": {
             "wspd_max_threshold": 40.0,
             "prcp_daily_max":     30.0,
@@ -364,107 +364,107 @@ VALIDATION_THRESHOLDS = {
 }
 
 # ─────────────────────────────────────────────
-# PARÂMETROS AGRONÔMICOS
+# AGRONOMIOC PARAMETERS
 # ─────────────────────────────────────────────
 CROP_PARAMS = {
-    "soja": {
-        "name_pt":             "Soja",
-        "yield_min_sacas_ha":  40,
-        "yield_avg_sacas_ha":  52,
-        "yield_max_sacas_ha":  65,
-        "price_brl_saca":      145.0,
-        "saca_kg":             60,
-        "cycle_days":          120,
+    "soybean": {
+        "name_en":              "Soybean",
+        "yield_min_bags_ha":    40,
+        "yield_avg_bags_ha":    52,
+        "yield_max_bags_ha":    65,
+        "price_brl_bag":        145.0,
+        "bag_kg":               60,
+        "cycle_days":           120,
         "critical_phases": {
-            "germinacao":    (0,   15),
-            "vegetativo":    (15,  55),
-            "florescimento": (55,  75),
-            "enchimento":    (75, 100),
-            "maturacao":     (100,120),
+            "germination":      (0,   15),
+            "vegetative":       (15,  55),
+            "flowering":        (55,  75),
+            "grain_filling":    (75, 100),
+            "maturation":       (100, 120),
         },
         "yield_loss_factor": {
-            "germinacao":    0.40,
-            "vegetativo":    0.50,
-            "florescimento": 0.85,
-            "enchimento":    0.90,
-            "maturacao":     0.30,
+            "germination":      0.40,
+            "vegetative":       0.50,
+            "flowering":        0.85,
+            "grain_filling":    0.90,
+            "maturation":       0.30,
         },
         "ndvi_healthy_min": 0.60,
         "ndvi_critical":    0.35,
     },
-    "milho": {
-        "name_pt":             "Milho",
-        "yield_min_sacas_ha":  100,
-        "yield_avg_sacas_ha":  140,
-        "yield_max_sacas_ha":  180,
-        "price_brl_saca":       58.0,
-        "saca_kg":             60,
-        "cycle_days":          130,
+    "corn": {
+        "name_en":              "Corn",
+        "yield_min_bags_ha":    100,
+        "yield_avg_bags_ha":    140,
+        "yield_max_bags_ha":    180,
+        "price_brl_bag":        58.0,
+        "bag_kg":               60,
+        "cycle_days":           130,
         "critical_phases": {
-            "germinacao":    (0,   10),
-            "vegetativo":    (10,  60),
-            "pendoamento":   (60,  75),
-            "espigamento":   (75,  90),
-            "enchimento":    (90, 120),
-            "maturacao":     (120,130),
+            "germination":      (0,   10),
+            "vegetative":       (10,  60),
+            "tasseling":        (60,  75),
+            "silking":          (75,  90),
+            "grain_filling":    (90, 120),
+            "maturation":       (120, 130),
         },
         "yield_loss_factor": {
-            "germinacao":    0.30,
-            "vegetativo":    0.55,
-            "pendoamento":   0.80,
-            "espigamento":   0.95,
-            "enchimento":    0.85,
-            "maturacao":     0.25,
+            "germination":      0.30,
+            "vegetative":       0.55,
+            "tasseling":        0.80,
+            "silking":          0.95,
+            "grain_filling":    0.85,
+            "maturation":       0.25,
         },
         "ndvi_healthy_min": 0.65,
         "ndvi_critical":    0.38,
     },
-    "trigo": {
-        "name_pt":             "Trigo",
-        "yield_min_sacas_ha":  40,
-        "yield_avg_sacas_ha":  55,
-        "yield_max_sacas_ha":  70,
-        "price_brl_saca":       90.0,
-        "saca_kg":             60,
-        "cycle_days":          110,
+    "wheat": {
+        "name_en":              "Wheat",
+        "yield_min_bags_ha":    40,
+        "yield_avg_bags_ha":    55,
+        "yield_max_bags_ha":    70,
+        "price_brl_bag":        90.0,
+        "bag_kg":               60,
+        "cycle_days":           110,
         "critical_phases": {
-            "germinacao":    (0,   15),
-            "afilhamento":   (15,  40),
-            "espigamento":   (40,  60),
-            "graos":         (60,  90),
-            "maturacao":     (90, 110),
+            "germination":      (0,   15),
+            "tillering":        (15,  40),
+            "heading":          (40,  60),
+            "grain_development": (60, 90),
+            "maturation":       (90, 110),
         },
         "yield_loss_factor": {
-            "germinacao":    0.45,
-            "afilhamento":   0.60,
-            "espigamento":   0.90,
-            "graos":         0.80,
-            "maturacao":     0.20,
+            "germination":      0.45,
+            "tillering":        0.60,
+            "heading":          0.90,
+            "grain_development": 0.80,
+            "maturation":       0.20,
         },
         "ndvi_healthy_min": 0.55,
         "ndvi_critical":    0.30,
     },
-    "arroz": {
-        "name_pt":             "Arroz",
-        "yield_min_sacas_ha":  130,
-        "yield_avg_sacas_ha":  170,
-        "yield_max_sacas_ha":  210,
-        "price_brl_saca":       55.0,
-        "saca_kg":             50,
-        "cycle_days":          120,
+    "rice": {
+        "name_en":              "Rice",
+        "yield_min_bags_ha":    130,
+        "yield_avg_bags_ha":    170,
+        "yield_max_bags_ha":    210,
+        "price_brl_bag":        55.0,
+        "bag_kg":               50,
+        "cycle_days":           120,
         "critical_phases": {
-            "germinacao":    (0,   15),
-            "vegetativo":    (15,  60),
-            "floracao":      (60,  80),
-            "graos":         (80, 105),
-            "maturacao":     (105,120),
+            "germination":      (0,   15),
+            "vegetative":       (15,  60),
+            "flowering":        (60,  80),
+            "grain_development": (80, 105),
+            "maturation":       (105, 120),
         },
         "yield_loss_factor": {
-            "germinacao":    0.35,
-            "vegetativo":    0.60,
-            "floracao":      0.92,
-            "graos":         0.85,
-            "maturacao":     0.15,
+            "germination":      0.35,
+            "vegetative":       0.60,
+            "flowering":        0.92,
+            "grain_development": 0.85,
+            "maturation":       0.15,
         },
         "ndvi_healthy_min": 0.60,
         "ndvi_critical":    0.35,
@@ -472,7 +472,7 @@ CROP_PARAMS = {
 }
 
 # ─────────────────────────────────────────────
-# NORMAIS CLIMÁTICAS — Rio Grande do Sul
+# CLIMATE NORMALS — Rio Grande do Sul
 # ─────────────────────────────────────────────
 CLIMATE_NORMALS_RS = {
     1:  {"prcp_mm": 130, "tavg_c": 24.5},

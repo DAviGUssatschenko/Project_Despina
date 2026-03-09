@@ -1,6 +1,6 @@
 """
-modules/docx_exporter.py — Layout profissional
-Inclui seção de solo EMBRAPA e corrige parâmetro hist_baseline.
+modules/docx_exporter.py — profissional Layout 
+Includes soil EMBRAPA section and fixes hist_baseline parameter.
 """
 from __future__ import annotations
 from datetime import date, datetime

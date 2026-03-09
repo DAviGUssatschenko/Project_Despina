@@ -91,8 +91,8 @@ class CopernicusClient:
         if not self._token or (now - self._token_ts) > self._token_ttl:
             if not self.client_id or not self.client_secret:
                 raise RuntimeError(
-                    "Credenciais Copernicus não encontradas em config.py.\n"
-                    "Verifique CDSE_CLIENT_ID e CDSE_CLIENT_SECRET no arquivo config.py."
+                    "Copernicus credentials not found in config.py.\n"
+                    "Verify CDSE_CLIENT_ID and CDSE_CLIENT_SECRET in the config.py file."
                 )
             self._token    = _get_token(self.client_id, self.client_secret)
             self._token_ts = now
@@ -110,7 +110,7 @@ class CopernicusClient:
         aggregation_days: int = 5,
     ) -> List[Dict]:
         if index_name not in EVALSCRIPTS:
-            raise ValueError(f"Índice desconhecido: {index_name}")
+            raise ValueError(f"Unknown index: {index_name}")
 
         #cache hit
         ck = _cache_key(geometry, str(start_date), str(end_date), index_name, aggregation_days)
@@ -161,7 +161,7 @@ class CopernicusClient:
             _cache_set(ck, result)
             return result
         elif resp.status_code == 429:
-            log.warning("Rate limit — aguardando 10s...")
+            log.warning("Rate limit — waiting 10s...")
             time.sleep(10)
             return self.get_index_timeseries(geometry, start_date, end_date, index_name, aggregation_days)
         else:
@@ -286,21 +286,21 @@ function evaluatePixel(s) {
         baseline_start = start_date - timedelta(days=baseline_days)
         baseline_end   = start_date - timedelta(days=1)
 
-        print(f"   Coletando {len(self.INDICES)} índices do Sentinel-2 (paralelo)...")
+        print(f"   Collecting {len(self.INDICES)} indices from Sentinel-2 (parallel)...")
         print(f"   Baseline : {baseline_start} → {baseline_end}")
-        print(f"   Evento   : {start_date} → {end_date}")
+        print(f"   Event   : {start_date} → {end_date}")
 
         #cloud cover
         cloud = self._get_cloud_cover_stats(geometry, start_date, end_date)
         if cloud:
             cloud_mean = cloud["mean_pct"]
             cloud_max  = cloud["max_pct"]
-            flag = " ⚠️  ALTA" if cloud_mean > MAX_CLOUD_COVER else ""
-            print(f"   ☁  Nuvens período evento: média {cloud_mean:.1f}%  |  máx {cloud_max:.1f}%"
-                  f"  |  limiar configurado: {MAX_CLOUD_COVER}%{flag}")
+            flag = " ⚠️  HIGH" if cloud_mean > MAX_CLOUD_COVER else ""
+            print(f"   ☁  Clouds during event period: average {cloud_mean:.1f}%  |  max {cloud_max:.1f}%"
+                  f"  |  configured threshold: {MAX_CLOUD_COVER}%{flag}")
             if cloud_mean > MAX_CLOUD_COVER:
-                print(f"   ⚠  Cobertura de nuvens acima do limiar — índices espectrais podem"
-                      f" ter baixa qualidade ou N/D nesse período.")
+                print(f"   ⚠  Cloud cover above threshold — spectral indices may"
+                      f" have low quality or N/D in this period.")
 
         def _fetch_index(idx_name: str):
             base_series  = self.get_index_timeseries(geometry, baseline_start, baseline_end, idx_name)

@@ -20,25 +20,25 @@ DB_URL = ""
 
 def build_parser():
     p = argparse.ArgumentParser(
-        description="Validador de Sinistros Agrícolas — Poseidon + Copernicus + EMBRAPA",
+        description="Agricultural Claims Validator — Poseidon + Copernicus + EMBRAPAa spectral index images",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    p.add_argument("--geojson",   required=True,  help="Arquivo GeoJSON da fazenda")
-    p.add_argument("--start",     required=True,  help="Data início do evento (YYYY-MM-DD)")
-    p.add_argument("--end",       required=True,  help="Data fim do evento (YYYY-MM-DD)")
-    p.add_argument("--problem",   required=True,  choices=["seca", "chuva", "geada", "granizo"])
-    p.add_argument("--crop",      required=True,  choices=["soja", "milho", "trigo", "arroz"])
+    p.add_argument("--geojson",   required=True,  help="GeoJSON farm archive")
+    p.add_argument("--start",     required=True,  help="Event Inicial Date (YYYY-MM-DD)")
+    p.add_argument("--end",       required=True,  help="Event Final Date (YYYY-MM-DD)")
+    p.add_argument("--problem",   required=True,  choices=["drought", "rainfall", "frost", "hail"])
+    p.add_argument("--crop",      required=True,  choices=["soybean", "wheat", "maze", "rice"])
     p.add_argument("--db",        default=DB_URL,  help="Connection string PostgreSQL")
     p.add_argument("--area-ha",   type=float, default=None)
-    p.add_argument("--planting",  default=None,   help="Data de plantio (YYYY-MM-DD)")
+    p.add_argument("--planting",  default=None,   help="Sowing date (YYYY-MM-DD)")
     p.add_argument("--farm-name", default="Propriedade Rural")
-    p.add_argument("--docx",      default=None,   help="Nome do arquivo .docx de saída")
-    p.add_argument("--dry-run",   action="store_true", help="Usa dados simulados")
-    p.add_argument("--fast",      action="store_true", help="Usa ponto Poseidon mais próximo (sem IDW)")
-    p.add_argument("--no-soil",   action="store_true", help="Pula análise de solo EMBRAPA")
-    p.add_argument("--soil-shp",  default=None,   help="Caminho alternativo para shapefile EMBRAPA")
-    p.add_argument("--pipeline",  default=None,   help="Caminho do pipeline_*.json de saída (padrão: pipeline_<nome>_<data>_<evento>.json)")
+    p.add_argument("--docx",      default=None,   help="Output .docx filename")
+    p.add_argument("--dry-run",   action="store_true", help="Uses simulated data")
+    p.add_argument("--fast",      action="store_true", help="Use the nearest Poseidon point (without IDW)")
+    p.add_argument("--no-soil",   action="store_true", help="Embrapa soil analysis skips")
+    p.add_argument("--soil-shp",  default=None,   help="Alternative path to EMBRAPA shapefile")
+    p.add_argument("--pipeline",  default=None,   help="Path to the output pipeline_*.json file (default: pipeline_<name>_<date>_<event>.json)")
     return p
 
 

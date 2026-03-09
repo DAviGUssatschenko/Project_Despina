@@ -40,10 +40,7 @@ def build_parser():
     p.add_argument("--pipeline",  default=None,   help="Path to the output pipeline_*.json file (default: pipeline_<name>_<date>_<event>.json)")
     return p
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # GeoJSON
-# ─────────────────────────────────────────────────────────────────────────────
 
 def load_geojson(path: str) -> Dict:
     with open(path, encoding="utf-8") as f:
@@ -104,9 +101,7 @@ def compute_area_ha(geometry: Dict) -> float:
         return round(abs(area / 2) * m_lat * m_lon / 10_000, 2)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Synthetic data for dry-run
-# ─────────────────────────────────────────────────────────────────────────────
 
 def synthetic_copernicus(event_type: str) -> Dict:
     data = {
@@ -195,27 +190,24 @@ def synthetic_soil(event_type: str) -> Dict:
                 "code": "LVd", "name": "Latossolo Vermelho-Amarelo Distrófico",
                 "resolved": "Latossolo Vermelho-Amarelo",
                 "pct_area": 78.4, "apt_class": 2,
-                "water_props": {"AWC": 110, "Ks": 28, "fc": 33, "wp": 14, "retencao": "média", "textura": "argilosa"},
+                "water_props": {"AWC": 110, "Ks": 28, "fc": 33, "wp": 14, "retention": "medium", "texture": "clayey"},
             },
             {
                 "code": "CXbd", "name": "Cambissolo Háplico Tb Distrófico",
                 "resolved": "Cambissolo Háplico",
                 "pct_area": 21.6, "apt_class": 3,
-                "water_props": {"AWC": 60, "Ks": 18, "fc": 26, "wp": 12, "retencao": "média-baixa", "textura": "média"},
+                "water_props": {"AWC": 60, "Ks": 18, "fc": 26, "wp": 12, "retention": "medium-low", "texture": "medium"},
             },
         ],
-        "water_props":                  {"AWC": 110, "Ks": 28, "fc": 33, "wp": 14, "retencao": "média", "textura": "argilosa"},
+        "water_props":                  {"AWC": 110, "Ks": 28, "fc": 33, "wp": 14, "retention": "medium", "texture": "clayey"},
         "aptitude_label":               "Regular",
-        "aptitude_description":         "Terras de aptidão regular para lavouras",
+        "aptitude_description":         "Land with average suitability for farming",
         "classified_area_percentage":   100.0,
         "unclassified_area_percentage": 0.0,
     }
 
 
-
-# ─────────────────────────────────────────────────────────────────────────────
 # Pipeline JSON Export
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _json_default(obj):
     """Serializer for non-native JSON types (date, datetime, etc.)."""

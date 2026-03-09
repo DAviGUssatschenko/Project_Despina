@@ -58,7 +58,9 @@ class PoseidonConnector:
     # ── connection ──────────────────────────────────────────────────────────────
 
     def connect(self) -> None:
-        self._conn = psycopg2.connect(self.db_url)
+        # connect_timeout=10 prevents TCP from hanging indefinitely
+        # when the host is unreachable or firewalled.
+        self._conn = psycopg2.connect(self.db_url, connect_timeout=10)
 
     def close(self) -> None:
         if self._conn:

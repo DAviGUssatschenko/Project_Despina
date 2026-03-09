@@ -80,11 +80,11 @@ class ValidationEngine:
 
         #IDW score → severity
         idw_score = poseidon_vote.get("weighted_score", 0)
-        if   idw_score >= 70: severity = "muito severo"
-        elif idw_score >= 50: severity = "severo"
-        elif idw_score >= 35: severity = "moderado"
-        elif idw_score >= 20: severity = "fraco"
-        else:                 severity = "ausente / inconclusivo"
+        if   idw_score >= 70: severity = "Very Severe"
+        elif idw_score >= 50: severity = "Severe"
+        elif idw_score >= 35: severity = "Moderate"
+        elif idw_score >= 20: severity = "Weak"
+        else:                 severity = "Absent / Inconclusive"
 
         #loss estimate (now using soil)
         loss_estimate = self._estimate_yield_loss(
@@ -96,9 +96,9 @@ class ValidationEngine:
         )
 
         verdict = (
-            "CONFIRMADO"    if confidence >= 65 else
-            "INCONCLUSIVO"  if confidence >= 40 else
-            "NÃO CONFIRMADO"
+            "CONFIRMED"   if confidence >= 65 else
+            "INCONCLUSIVE"  if confidence >= 40 else
+            "NOT CONFIRMED"
         )
 
         checks_passed = sum(1 for c in self._checks if c.get("weight", 0) > 0 and c["passed"])
@@ -131,109 +131,109 @@ class ValidationEngine:
             drop = -cop["NDVI"]["anomaly_pct"]
             req  = sat_thresh.get("ndvi_drop_pct", 25)
             self._checks.append({
-                "name":   "NDVI — queda de vigor vegetativo",
+                "name":   "NDVI — decline in vegetative vigor",
                 "passed": drop >= req,
                 "weight": 3.0,
-                "value":  f"Queda de {drop:.1f}% (mínimo esperado: {req}%)",
-                "detail": f"Baseline: {cop['NDVI'].get('baseline_mean','N/A')} → Evento: {cop['NDVI'].get('event_mean','N/A')}",
+                "value":  f"decline of {drop:.1f}% (minimum expected: {req}%)",
+                "detail": f"Baseline: {cop['NDVI'].get('baseline_mean','N/A')} → Event: {cop['NDVI'].get('event_mean','N/A')}",
             })
 
         if "NDWI" in cop and cop["NDWI"].get("event_mean") is not None:
             val  = cop["NDWI"]["event_mean"]
-            req  = sat_thresh.get("ndwi_threshold", -0.05 if self.event_type == "seca" else 0.20)
-            cond = val < req if self.event_type == "seca" else val > req
+            req  = sat_thresh.get("ndwi_threshold", -0.05 if self.event_type == "drought" else 0.20)
+            cond = val < req if self.event_type == "drought" else val > req
             self._checks.append({
-                "name":   "NDWI — status hídrico da vegetação",
+                "name":   "NDWI — vegetation water status",
                 "passed": cond,
                 "weight": 2.5,
-                "value":  f"NDWI evento: {val:.4f} (limiar: {req})",
+                "value":  f"NDWI event: {val:.4f} (threshold: {req})",
                 "detail": f"Baseline: {cop['NDWI'].get('baseline_mean','N/A')}",
             })
 
         if "NDMI" in cop and cop["NDMI"].get("event_mean") is not None:
             val  = cop["NDMI"]["event_mean"]
             req  = sat_thresh.get("ndmi_threshold", -0.10)
-            cond = val < req if self.event_type == "seca" else val > 0.10
+            cond = val < req if self.event_type == "drought" else val > 0.10
             self._checks.append({
-                "name":   "NDMI — umidade no dossel (SWIR)",
+                "name":   "NDMI — vegetation moisture (SWIR)",
                 "passed": cond,
                 "weight": 2.0,
-                "value":  f"NDMI evento: {val:.4f} (limiar: {req})",
-                "detail": "Detecta déficit hídrico no tecido vegetal via infravermelho médio",
+                "value":  f"NDMI event: {val:.4f} (threshold: {req})",
+                "detail": "Detects water deficit in the vegetative tissue via medium infrared reflectance",
             })
 
         if "NDRE" in cop and cop["NDRE"].get("anomaly_pct") is not None:
             drop = -cop["NDRE"]["anomaly_pct"]
             req  = sat_thresh.get("ndre_drop_pct", 25)
             self._checks.append({
-                "name":   "NDRE — estresse precoce (red-edge)",
+                "name":   "NDRE — early stress (red-edge)",
                 "passed": drop >= req,
                 "weight": 2.0,
-                "value":  f"Queda de {drop:.1f}% no NDRE",
-                "detail": "Detecta alterações clorofilicas 2–3 semanas antes do NDVI",
+                "value":  f"decline of {drop:.1f}% in NDRE",
+                "detail": "Detects chlorophyll changes 2–3 weeks before NDVI",
             })
 
         if "BSI" in cop and cop["BSI"].get("anomaly_abs") is not None:
             delta = cop["BSI"]["anomaly_abs"]
             req   = sat_thresh.get("bsi_increase", 0.05)
             self._checks.append({
-                "name":   "BSI — aumento de solo exposto",
+                "name":   "BSI — exposed soil increase",
                 "passed": delta >= req,
                 "weight": 1.5,
-                "value":  f"BSI +{delta:.4f} (limiar: +{req})",
-                "detail": "Indica falha de stand, erosão ou morte de plantas",
+                "value":  f"BSI +{delta:.4f} (threshold: +{req})",
+                "detail": "Indicates stand failure, erosion, or plant mortality",
             })
 
         if "VHI" in cop and cop["VHI"].get("event_mean") is not None:
             vhi = cop["VHI"]["event_mean"]
             req = sat_thresh.get("vhi_critical", 40.0)
             self._checks.append({
-                "name":   "VHI — índice de saúde da vegetação",
+                "name":   "VHI — vegetation health index",  
                 "passed": vhi < req,
                 "weight": 2.5,
-                "value":  f"VHI: {vhi:.1f} ({'CRÍTICO 🔴' if vhi < 35 else 'BAIXO ⚠️' if vhi < req else 'NORMAL ✅'})",
+                "value":  f"VHI: {vhi:.1f} ({'CRITICAL 🔴' if vhi < 35 else 'LOW ⚠️' if vhi < req else 'NORMAL ✅'})",
                 "detail": f"VCI: {cop['VHI'].get('vci','N/A')} | TCI: {cop['VHI'].get('tci','N/A')}",
             })
 
         if "NBR" in cop and cop["NBR"].get("anomaly_pct") is not None:
             drop = -cop["NBR"]["anomaly_pct"]
             self._checks.append({
-                "name":   "NBR — dano severo / queima de tecido",
+                "name":   "NBR — severe damage / tissue burning",
                 "passed": drop >= sat_thresh.get("nbr_drop_pct", 15),
                 "weight": 1.5,
-                "value":  f"NBR queda de {drop:.1f}%",
-                "detail": "Detecta danos severos por calor, seca ou fogo",
+                "value":  f"NBR decline of {drop:.1f}%",
+                "detail": "Detects severe damage by heat, drought or fire",
             })
 
         if "PSRI" in cop and cop["PSRI"].get("anomaly_abs") is not None:
             delta = cop["PSRI"]["anomaly_abs"]
             req   = sat_thresh.get("psri_increase", 0.05)
             self._checks.append({
-                "name":   "PSRI — senescência vegetal acelerada",
+                "name":   "PSRI — accelerated plant senescence",
                 "passed": delta >= req,
                 "weight": 1.5,
                 "value":  f"PSRI Δ{delta:+.4f}",
-                "detail": "Detecta degradação celular e morte precoce do tecido vegetal",
+                "detail": "Detects cellular degradation and premature death of plant tissue",
             })
 
         if "EVI" in cop and cop["EVI"].get("anomaly_pct") is not None:
             drop = -cop["EVI"]["anomaly_pct"]
             self._checks.append({
-                "name":   "EVI — confirmação em alta biomassa",
+                "name":   "EVI — confirmation in high biomass",
                 "passed": drop >= 20,
                 "weight": 1.0,
-                "value":  f"EVI queda {drop:.1f}%",
-                "detail": "Enhanced Vegetation Index — robusto em alta densidade de copa",
+                "value":  f"EVI decline {drop:.1f}%",
+                "detail": "Enhanced Vegetation Index — robust in high canopy density",
             })
 
     #checks Poseidon
     def _check_poseidon_vote(self, vote: Dict) -> None:
         w_score      = vote.get("weighted_score", 0.0)
-        signal_level = vote.get("signal_level", "desconhecido")
+        signal_level = vote.get("signal_level", "unknown")
         passed       = vote.get("passed", False)
 
         self._checks.append({
-            "name":   f"Sinal climático Poseidon — score IDW {w_score:.0f}/100 ({signal_level})",
+            "name":   f"Poseidon climate signal — IDW score {w_score:.0f}/100 ({signal_level})",
             "passed": passed,
             "weight": 2.5,
             "value":  vote.get("description", "N/A"),
@@ -248,7 +248,7 @@ class ValidationEngine:
             return
         pos_thresh = self.thresholds.get("poseidon", {})
 
-        if self.event_type == "seca":
+        if self.event_type == "drought":
             total_prcp  = summary.get("prcp_total_mm")
             period_days = summary.get("period_days", 30)
             if total_prcp is not None:
@@ -258,11 +258,11 @@ class ValidationEngine:
                 pct         = total_prcp / normal_prcp * 100 if normal_prcp else 100
                 req         = pos_thresh.get("prcp_deficit_pct", 40)
                 self._checks.append({
-                    "name":   "Poseidon — precipitação acumulada vs normal",
+                    "name":   "Poseidon — accumulated precipitation vs normal",
                     "passed": pct < req,
                     "weight": 3.0,
-                    "value":  f"{total_prcp:.1f} mm ({pct:.0f}% do normal {normal_prcp:.0f} mm)",
-                    "detail": f"Limiar de seca: < {req}% do normal histórico",
+                    "value":  f"{total_prcp:.1f} mm ({pct:.0f}% of normal {normal_prcp:.0f} mm)",
+                    "detail": f"Drought threshold: < {req}% of historical normal",
                 })
             tavg = summary.get("tavg_mean_c")
             if tavg is not None:
@@ -271,14 +271,14 @@ class ValidationEngine:
                 anomaly     = tavg - normal_tavg
                 req         = pos_thresh.get("tavg_anomaly_c", 2.0)
                 self._checks.append({
-                    "name":   "Poseidon — anomalia positiva de temperatura",
+                    "name":   "Poseidon — positive temperature anomaly",
                     "passed": anomaly > req,
                     "weight": 2.0,
-                    "value":  f"Tméd: {tavg:.1f}°C | Anomalia: {anomaly:+.1f}°C (limiar: >{req}°C)",
-                    "detail": f"Normal climatológica: {normal_tavg:.1f}°C",
+                    "value":  f"Tméd: {tavg:.1f}°C | Anomalia: {anomaly:+.1f}°C (threshold: >{req}°C)",
+                    "detail": f"Climatological normal: {normal_tavg:.1f}°C",
                 })
 
-        elif self.event_type == "chuva":
+        elif self.event_type == "rain":
             total_prcp  = summary.get("prcp_total_mm")
             period_days = summary.get("period_days", 30)
             if total_prcp is not None:
@@ -288,23 +288,23 @@ class ValidationEngine:
                 pct         = total_prcp / normal_prcp * 100 if normal_prcp else 100
                 req         = pos_thresh.get("prcp_excess_pct", 150)
                 self._checks.append({
-                    "name":   "Poseidon — excesso de precipitação",
+                    "name":   "Poseidon — excess precipitation vs normal",
                     "passed": pct > req,
                     "weight": 3.0,
-                    "value":  f"{total_prcp:.1f} mm ({pct:.0f}% do normal)",
-                    "detail": f"Limiar de chuva excessiva: > {req}% do normal",
+                    "value":  f"{total_prcp:.1f} mm ({pct:.0f}% of normal)",
+                    "detail": f"Excessive rainfall threshold: > {req}% of normal",
                 })
 
-        elif self.event_type == "geada":
+        elif self.event_type == "frost":
             tmin_abs = summary.get("tmin_abs_c")
             req      = pos_thresh.get("tmin_threshold", 2.0)
             if tmin_abs is not None:
                 self._checks.append({
-                    "name":   "Poseidon — temperatura mínima absoluta",
+                    "name":   "Poseidon — absolute minimum temperature",
                     "passed": tmin_abs < req,
                     "weight": 3.0,
-                    "value":  f"Tmin absoluta: {tmin_abs:.2f}°C (limiar: < {req}°C)",
-                    "detail": "Temperatura de ponto de congelamento de tecidos vegetais",
+                    "value":  f"Tmin absoluta: {tmin_abs:.2f}°C (threshold: < {req}°C)",
+                    "detail": "Temperature at which plant tissues freeze",
                 })
 
     def _check_cross_consistency(self, cop: Dict, summary: Dict) -> None:
@@ -325,16 +325,16 @@ class ValidationEngine:
             else:
                 consistent = ndvi_drop > 10
             self._checks.append({
-                "name":   "Consistência cruzada satélite ↔ estação meteorológica",
+                "name":   "Cross-consistency satellite ↔ meteorological station",
                 "passed": consistent,
                 "weight": 2.0,
-                "value":  f"NDVI {'-' if ndvi_drop and ndvi_drop>0 else '+'}{abs(ndvi_drop or 0):.1f}% | Prcp {prcp_pct:.0f}% do normal",
-                "detail": "Verifica coerência entre anomalia satelital e registro climático",
+                "value":  f"NDVI {'-' if ndvi_drop and ndvi_drop>0 else '+'}{abs(ndvi_drop or 0):.1f}% | Prcp {prcp_pct:.0f}% of normal",
+                "detail": "Checks consistency between satellite anomaly and climate record",
             })
 
     def _check_crop_phase(self) -> Dict:
         if not self.planting_date:
-            return {"phase": "desconhecida", "sensitivity": 0.5, "description": "Data de plantio não informada"}
+            return {"phase": "unknown", "sensitivity": 0.5, "description": "Planting date not provided"}
         event_mid  = self.start_date + (self.end_date - self.start_date) / 2
         days_after = (event_mid - self.planting_date).days
         crop_p     = self.crop_params
@@ -342,11 +342,11 @@ class ValidationEngine:
             if d_start <= days_after <= d_end:
                 sensitivity = crop_p["yield_loss_factor"].get(phase_name, 0.5)
                 self._checks.append({
-                    "name":   f"Fase fenológica crítica: {phase_name.upper()}",
+                    "name":   f"Critical phenological phase: {phase_name.upper()}",
                     "passed": True,
                     "weight": 0.0,
-                    "value":  f"{days_after} DAP — fase: {phase_name} (sensibilidade: {sensitivity*100:.0f}%)",
-                    "detail": "Quanto maior a sensibilidade, maior o impacto no rendimento final",
+                    "value":  f"{days_after} DAP — phase: {phase_name} (sensitivity: {sensitivity*100:.0f}%)",
+                    "detail": "The higher the sensitivity, the greater the impact on final yield",
                 })
                 return {
                     "phase":            phase_name,
@@ -355,24 +355,24 @@ class ValidationEngine:
                     "description":      f"{phase_name} ({d_start}–{d_end} DAP)",
                 }
         return {
-            "phase":       "fora do ciclo",
+            "phase":       "outside the cycle",
             "sensitivity": 0.1,
-            "description": f"{days_after} DAP — fora das fases catalogadas",
+            "description": f"{days_after} DAP — outside the cataloged phases",
         }
 
     #check the soil
     def _check_soil(self, soil_data: Dict) -> Dict:
         """
-        Avalia aptidão do solo para o evento declarado.
-        Retorna dict com resultado e, se pertinente, adiciona check à lista.
+        Evaluates soil suitability for the declared event.
+        Returns a dictionary with the result and, if relevant, adds a checkmark to the list.
         """
         if not soil_data or soil_data.get("error"):
-            return {"available": False, "error": soil_data.get("error", "Dados de solo indisponíveis")}
+            return {"available": False, "error": soil_data.get("error", "Soil data unavailable.")}
 
         dominant_class = soil_data.get("dominant_class")
         suitable       = soil_data.get("suitable_for_agriculture", True)
         water_props    = soil_data.get("water_props", SOIL_WATER_PROPERTIES["default"])
-        retencao       = water_props.get("retencao", "média")
+        retencao       = water_props.get("retention", "mean")
         awc            = water_props.get("AWC", 100)
         ks             = water_props.get("Ks", 20)
         apt_label      = soil_data.get("aptitude_label", "N/D")
@@ -381,10 +381,10 @@ class ValidationEngine:
 
         #agricultural fitness check
         self._checks.append({
-            "name":   f"Aptidão do Solo EMBRAPA — Classe {dominant_class} ({apt_label})",
+            "name":   f"EMBRAPA Soil Suitability — Class {dominant_class} ({apt_label})",
             "passed": suitable,
             "weight": 1.0,
-            "value":  f"{soil_name} ({dom_pct:.0f}% da área) — {'APTA' if suitable else 'INAPTA'} para lavouras",
+            "value":  f"{soil_name} ({dom_pct:.0f}% of area) — {'Suitable' if suitable else 'Not Suitable'} for agriculture",
             "detail": soil_data.get("aptitude_description", ""),
         })
 
@@ -393,41 +393,41 @@ class ValidationEngine:
         amplifier     = amplifier_map.get(retencao, 1.0)
 
         if self.event_type == "seca":
-            vulnerable = retencao in ("muito baixa", "baixa", "média-baixa")
+            vulnerable = retencao in ("very low", "low", "medium-low")
             risk_label = (
-                f"Solo com baixa retenção hídrica (AWC={awc} mm/m) — "
-                f"{'amplifica déficit hídrico' if vulnerable else 'retenção adequada'}"
+                f"Soil with low water retention (AWC={awc} mm/m) — "
+                f"{'amplifies water deficit' if vulnerable else 'adequate retention'}"
             )
             self._checks.append({
-                "name":   "Solo — vulnerabilidade à seca",
+                "name":   "Soil — vulnerability to drought",
                 "passed": vulnerable,
                 "weight": 1.5,
-                "value":  f"AWC={awc} mm/m | Retenção: {retencao} | Fator de amplificação: {amplifier:.2f}x",
+                "value":  f"AWC={awc} mm/m | Retention: {retencao} | Amplification Factor: {amplifier:.2f}x",
                 "detail": risk_label,
             })
 
-        elif self.event_type == "chuva":
-            vulnerable = retencao in ("alta", "muito alta") or ks < 5
+        elif self.event_type == "rain":
+            vulnerable = retencao in ("high", "very high") or ks < 5
             risk_label = (
-                f"Solo com alta retenção / baixa drenagem (Ks={ks} mm/h) — "
-                f"{'risco de encharcamento' if vulnerable else 'drenagem adequada'}"
+                f"Soil with high water retention / poor drainage (Ks={ks} mm/h) — "
+                f"{'risk of waterlogging' if vulnerable else 'adequate drainage'}"
             )
             self._checks.append({
-                "name":   "Solo — risco de encharcamento",
+                "name":   "Soil — risk of waterlogging",
                 "passed": vulnerable,
                 "weight": 1.5,
-                "value":  f"Ks={ks} mm/h | Retenção: {retencao} | Fator de amplificação: {amplifier:.2f}x",
+                "value":  f"Ks={ks} mm/h | Retention: {retencao} | Amplification Factor: {amplifier:.2f}x",
                 "detail": risk_label,
             })
 
-        elif self.event_type == "geada":
+        elif self.event_type == "frost":
             #moist/heavy soils offer greater protection against frost due to latent heat.
             self._checks.append({
-                "name":   "Solo — capacidade de tamponamento térmico",
-                "passed": retencao in ("alta", "muito alta"),
+                "name":   "Soil — thermal buffering capacity",
+                "passed": retencao in ("high", "very high"),
                 "weight": 0.5,
-                "value":  f"Textura: {water_props.get('textura','N/D')} | Retenção: {retencao}",
-                "detail": "Solos mais úmidos liberam calor latente que pode atenuar geadas leves",
+                "value":  f"Texture: {water_props.get('textura','N/D')} | Retention: {retencao}",
+                "detail": "Soils with higher moisture content release latent heat that can mitigate light frosts",
             })
 
         return {
@@ -440,7 +440,7 @@ class ValidationEngine:
             "AWC":             awc,
             "Ks":              ks,
             "amplifier":       amplifier,
-            "textura":         water_props.get("textura", "N/D"),
+            "textura":         water_props.get("texture", "N/D"),
         }
 
     #loss estimate
@@ -477,8 +477,8 @@ class ValidationEngine:
                 "n_years":       n_years,
                 "years_used":    years_str,
                 "note": (
-                    f"Com base em {n_years} anos anteriores neste ponto Poseidon "
-                    f"({years_str}), a produtividade local esperada seria "
+                    f"Based on {n_years} In previous years at this spot, Poseidon "
+                    f"({years_str}), the expected local productivity would be "
                     f"~{local_yield_est:.1f} sc/ha (vs média estadual de {base_yield} sc/ha)."
                 ),
             }
@@ -486,7 +486,7 @@ class ValidationEngine:
 
         #climate loss fraction
         climate_loss_frac = 0.0
-        if self.event_type == "seca" and summary:
+        if self.event_type == "drought" and summary:
             period_days = summary.get("period_days", 30)
             months      = period_days / 30
             mid_month   = self.start_date.month
@@ -494,7 +494,7 @@ class ValidationEngine:
             total_prcp  = summary.get("prcp_total_mm", normal_prcp)
             deficit_pct = max(0, (normal_prcp - total_prcp) / normal_prcp) if normal_prcp else 0
             climate_loss_frac = min(deficit_pct * 0.8, 0.8)
-        elif self.event_type == "chuva" and summary:
+        elif self.event_type == "rain" and summary:
             period_days = summary.get("period_days", 30)
             months      = period_days / 30
             mid_month   = self.start_date.month
@@ -502,9 +502,9 @@ class ValidationEngine:
             total_prcp  = summary.get("prcp_total_mm", normal_prcp)
             excess_pct  = max(0, (total_prcp - normal_prcp) / normal_prcp) if normal_prcp else 0
             climate_loss_frac = min(excess_pct * 0.5, 0.6)
-        elif self.event_type == "geada":
+        elif self.event_type == "frost":
             climate_loss_frac = 0.50
-        elif self.event_type == "granizo":
+        elif self.event_type == "hail":
             climate_loss_frac = 0.45
 
         #satellite Loss Fraction (NDVI)
@@ -522,12 +522,12 @@ class ValidationEngine:
         soil_amp_note  = None
         if soil_data and not soil_data.get("error"):
             water_props    = soil_data.get("water_props", {})
-            retencao       = water_props.get("retencao", "média")
+            retention       = water_props.get("retention", "média")
             amp_map        = SOIL_EVENT_AMPLIFIER.get(self.event_type, {})
-            soil_amplifier = amp_map.get(retencao, 1.0)
+            soil_amplifier = amp_map.get(retention, 1.0)
             final_loss_frac = min(final_loss_frac * soil_amplifier, 0.95)
             soil_amp_note  = {
-                "retencao":      retencao,
+                "retention":     retention,
                 "amplifier":     soil_amplifier,
                 "soil_name":     soil_data.get("resolved_name") or soil_data.get("soil_name", "N/D"),
                 "AWC":           water_props.get("AWC", "N/D"),

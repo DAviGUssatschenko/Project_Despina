@@ -1,7 +1,7 @@
 """
 modules/poseidon.py
-Conexão com PostgreSQL Poseidon, busca espacial de pontos vizinhos,
-interpolação IDW e votação 3/4 para validação do evento.
+Connection to PostgreSQL Poseidon, spatial search for neighboring points,
+IDW interpolation, and 3/4 voting for event validation.
 """
 
 from __future__ import annotations
@@ -18,11 +18,11 @@ from config import POSEIDON_TABLES, POSEIDON_GRID_STEP, CLIMATE_NORMALS_RS
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Utilitários geométricos
+# Geometric utilities
 # ─────────────────────────────────────────────────────────────────────────────
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Distância haversine em km entre dois pontos lat/lon."""
+    """Haversine distance in km between two lat/lon points."""
     R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
@@ -34,7 +34,7 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 def _haversine_vec(lat: float, lon: float,
                    lats: np.ndarray, lons: np.ndarray) -> np.ndarray:
-    """Haversine vetorizado: distância de 1 ponto para N pontos (km)."""
+    """Vectorized haversine: distance from 1 point to N points (km)."""
     R = 6371.0
     dlat = np.radians(lats - lat)
     dlon = np.radians(lons - lon)
@@ -44,18 +44,18 @@ def _haversine_vec(lat: float, lon: float,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Conector Poseidon
+# Poseidon conector
 # ─────────────────────────────────────────────────────────────────────────────
 
 class PoseidonConnector:
-    """Acessa o banco Poseidon e fornece dados climáticos interpolados."""
+    """Acess the Poseidon database and provides interpolated climate data."""
 
     def __init__(self, db_url: str):
         self.db_url = db_url
         self._conn: Optional[psycopg2.extensions.connection] = None
         self._points_cache: Optional[pd.DataFrame] = None
 
-    # ── conexão ──────────────────────────────────────────────────────────────
+    # ── connection ──────────────────────────────────────────────────────────────
 
     def connect(self) -> None:
         self._conn = psycopg2.connect(self.db_url)
@@ -69,10 +69,10 @@ class PoseidonConnector:
             self.connect()
         return self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    # ── cache de coordenadas ──────────────────────────────────────────────────
+    # ── Coordinate cache ──────────────────────────────────────────────────
 
     def _load_points(self) -> pd.DataFrame:
-        """Carrega todos os pontos do Poseidon em memória (cache)."""
+        """Loads all Poseidon points into memory (cache)."""
         if self._points_cache is not None:
             return self._points_cache
         with self._cursor() as cur:
@@ -85,10 +85,10 @@ class PoseidonConnector:
         self._points_cache = df
         return df
 
-    # ── busca espacial ────────────────────────────────────────────────────────
+    # ── Spatial search ────────────────────────────────────────────────────────
 
     def find_nearest_point(self, lat: float, lon: float) -> Dict:
-        """Retorna o ponto Poseidon mais próximo de (lat, lon)."""
+        """Returns the nearest Poseidon point to (lat, lon)."""
         pts   = self._load_points()
         dists = _haversine_vec(lat, lon, pts["latitude"].values, pts["longitude"].values)
         return pts.iloc[int(np.argmin(dists))].to_dict()
@@ -97,14 +97,14 @@ class PoseidonConnector:
                                  grid_step: float = POSEIDON_GRID_STEP
                                  ) -> Dict[str, Optional[Dict]]:
         """
-        Encontra os 4 vizinhos cardinais (N, S, L, O) do ponto central.
-        Retorna o ponto Poseidon mais próximo de cada direção.
+        Finds the 4 cardinal neighbors (N, S, E, W) of the central point.
+        Returns the nearest Poseidon point for each direction.
         """
         targets = {
             "N": (lat + grid_step, lon),
             "S": (lat - grid_step, lon),
-            "L": (lat,             lon + grid_step),
-            "O": (lat,             lon - grid_step),
+            "E": (lat,             lon + grid_step),
+            "W": (lat,             lon - grid_step),
         }
         pts      = self._load_points()
         lats_arr = pts["latitude"].values
@@ -121,7 +121,7 @@ class PoseidonConnector:
 
         return neighbors
 
-    # ── dados climáticos ──────────────────────────────────────────────────────
+    # ── Climate data ──────────────────────────────────────────────────────
 
     def get_weather_data(
         self,
@@ -129,7 +129,7 @@ class PoseidonConnector:
         start_date: date,
         end_date: date,
     ) -> pd.DataFrame:
-        """Busca dados meteorológicos diários para os point_ids e período."""
+        """Fetches daily weather data for the point_ids and period."""
         if not point_ids:
             return pd.DataFrame()
         placeholders = ",".join(["%s"] * len(point_ids))
@@ -156,7 +156,7 @@ class PoseidonConnector:
         df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
         return df
 
-    # ── interpolação IDW ──────────────────────────────────────────────────────
+    # ── IDW interpolation ──────────────────────────────────────────────────────
 
     def idw_interpolate(
         self,
@@ -168,12 +168,12 @@ class PoseidonConnector:
         power: float = 2.0,
     ) -> pd.DataFrame:
         """
-        Interpolação por distância inversa (IDW) dos 4 vizinhos cardinais
-        para o ponto central da fazenda.
+        Inverse distance weighting (IDW) interpolation from the 4 cardinal neighbors
+        to the farm center point.
         """
         valid_neighbors = {k: v for k, v in neighbors.items() if v is not None}
         if not valid_neighbors:
-            raise ValueError("Nenhum vizinho Poseidon encontrado na região.")
+            raise ValueError("No Poseidon neighbors found in the region.")
 
         point_ids = [v["point_id"] for v in valid_neighbors.values()]
         weather   = self.get_weather_data(point_ids, start_date, end_date)
@@ -184,7 +184,7 @@ class PoseidonConnector:
         numeric_cols = ["tmin", "tmax", "tavg", "rh_min", "rh_max", "rh_avg",
                         "prcp", "wspd_min", "wspd_max", "wspd_avg"]
 
-        # Calcula pesos IDW por distância ao centróide da fazenda
+        # Compute IDW weights by distance to the farm centroid
         weights: Dict[int, float] = {}
         for v in valid_neighbors.values():
             pid  = v["point_id"]
@@ -196,10 +196,10 @@ class PoseidonConnector:
         for pid in weights:
             weights[pid] /= total_weight
 
-        # Peso de cada linha como coluna — evita iterrows
+        # Weight of each row as a column — avoids iterrows
         weather["_w"] = weather["point_id"].map(weights).fillna(0.0)
 
-        # Média ponderada vetorizada por data
+        # Vectorized weighted average by date
         records = []
         for dt, grp in weather.groupby("date"):
             row: Dict = {"date": dt}
@@ -215,7 +215,7 @@ class PoseidonConnector:
         weather.drop(columns=["_w"], inplace=True)
         return pd.DataFrame(records)
 
-    # ── avaliação climática por score IDW ────────────────────────────────────
+    # ── Climate evaluation by IDW score ────────────────────────────────────
 
     def vote_3of4(
         self,
@@ -228,16 +228,16 @@ class PoseidonConnector:
         center_lon: Optional[float] = None,
     ) -> Dict:
         """
-        Avalia o sinal climático via score de intensidade de anomalia (0–100)
-        ponderado pelo inverso da distância ao centróide da fazenda (IDW).
+        Evaluates the climate signal via anomaly intensity score (0-100)
+        weighted by the inverse distance to the farm centroid (IDW).
 
-        Substitui a votação binária 3/4 porque:
-        - Eventos reais raramente fazem TODOS os vizinhos cruzar um limiar duro.
-        - Um ponto com 60% do normal de chuva é evidência real — não deve ser
-          descartado como "não confirma".
-        - A intensidade da anomalia importa tanto quanto a contagem de pontos.
+        Replaces binary 3/4 voting because:
+        - Real events rarely make all neighbors cross a hard threshold.
+        - A point with 60% of normal rainfall is real evidence — it shouldn't be
+          discarded as "doesn't confirm".
+        - Anomaly intensity matters as much as the number of points.
 
-        Aprovado se weighted_score >= 35 (sinal fraco-a-moderado confirmado).
+        Approved if weighted_score >= 35 (weak-to-moderate confirmed signal).
         """
         valid = {k: v for k, v in neighbors.items() if v is not None}
         if len(valid) < 2:
@@ -247,14 +247,14 @@ class PoseidonConnector:
                 "score":          0,
                 "total":          len(valid),
                 "weighted_score": 0.0,
-                "signal_level":   "insuficiente",
-                "description":    "Pontos insuficientes para análise climática.",
+                "signal_level":   "insufficient",
+                "description":    "Insufficient points for climate analysis.",
             }
 
         point_ids = [v["point_id"] for v in valid.values()]
         weather   = self.get_weather_data(point_ids, start_date, end_date)
 
-        # Calcula intensidade por ponto e peso IDW
+        # Compute intensity by point and IDW weight 
         votes: Dict[str, Dict] = {}
         idw_weights: Dict[str, float] = {}
 
@@ -268,11 +268,11 @@ class PoseidonConnector:
             result["lat"]       = round(point["latitude"], 5)
             result["lon"]       = round(point["longitude"], 5)
             result["direction"] = direction
-            # Backward-compat: "confirmed" se intensidade >= 40
+            # Backward-compat: "confirmed" if intensity >= 40
             result["confirmed"] = result.get("intensity", 0) >= 40
             votes[direction] = result
 
-            # Peso IDW: usa centróide se disponível, senão peso uniforme
+            # IDW Weight: uses centroid if available, otherwise uniform weight
             if center_lat is not None and center_lon is not None:
                 dist_km = max(haversine_km(center_lat, center_lon,
                                            point["latitude"], point["longitude"]), 0.1)
@@ -280,7 +280,7 @@ class PoseidonConnector:
             else:
                 idw_weights[direction] = 1.0
 
-        # Score ponderado (0–100)
+        # Weighted score (0–100)
         total_w   = sum(idw_weights.values())
         w_score   = sum(
             idw_weights[d] * votes[d].get("intensity", 0)
@@ -288,17 +288,17 @@ class PoseidonConnector:
         ) / total_w if total_w > 0 else 0.0
         weighted_score = round(w_score, 1)
 
-        # Nível de sinal
+        # Signal level
         if weighted_score >= 70:
-            signal_level = "muito forte"
+            signal_level = "very strong"
         elif weighted_score >= 50:
-            signal_level = "forte"
+            signal_level = "strong"
         elif weighted_score >= 35:
-            signal_level = "moderado"
+            signal_level = "moderate"
         elif weighted_score >= 20:
-            signal_level = "fraco"
+            signal_level = "weak"
         else:
-            signal_level = "ausente"
+            signal_level = "absent"
 
         confirmed_count = sum(1 for v in votes.values() if v["confirmed"])
         passed          = weighted_score >= 35
@@ -313,7 +313,7 @@ class PoseidonConnector:
             "description": (
                 f"Score climático IDW: {weighted_score:.0f}/100 — "
                 f"sinal {signal_level} "
-                f"({'✅ APROVADO' if passed else '❌ REPROVADO'})"
+                f"({'✅ APPROVED' if passed else '❌ REJECTED'})"
             ),
         }
 
@@ -326,27 +326,27 @@ class PoseidonConnector:
         end_date: date,
     ) -> Dict:
         """
-        Calcula a INTENSIDADE da anomalia (0–100) para um único ponto Poseidon.
+        Computes the anomaly INTENSITY (0–100) for a single Poseidon point.
 
-        Cada variável contribui com uma fração proporcional ao desvio em relação
-        ao normal — quanto maior o desvio, maior a contribuição.
+        Each variable contributes a fraction proportional to its deviation from
+        normal — the larger the deviation, the larger the contribution.
 
-        Escala de referência:
-          0–20  → sem anomalia significativa
-          20–40 → anomalia fraca
-          40–60 → anomalia moderada (antes exigia limiar binário)
-          60–80 → anomalia forte
-          80–100 → anomalia extrema
+        Reference scale:
+          0-20   → no significant anomaly
+          20-40  → weak anomaly
+          40-60  → moderate anomaly (previously required binary threshold)
+          60-80  → strong anomaly
+          80-100 → extreme anomaly
         """
         if df.empty:
-            return {"confirmed": False, "intensity": 0, "reason": "Sem dados para o período."}
+            return {"confirmed": False, "intensity": 0, "reason": "No data for the period."}
 
         period_days  = (end_date - start_date).days + 1
         pos_thresh   = thresholds.get("poseidon", {})
         center_month = (start_date.month + end_date.month) // 2 or start_date.month
         months_span  = max(period_days / 30, 1)
 
-        if event_type == "seca":
+        if event_type == "drought":
             total_prcp   = df["prcp"].sum()
             normal_prcp  = CLIMATE_NORMALS_RS.get(center_month, {}).get("prcp_mm", 110) * months_span
             prcp_pct     = (total_prcp / normal_prcp * 100) if normal_prcp > 0 else 100
@@ -355,15 +355,15 @@ class PoseidonConnector:
             tavg_anomaly = tavg_mean - normal_tavg
             rh_avg_mean  = df["rh_avg"].mean()
 
-            # Déficit hídrico: 0% prcp = 60pts | 40% prcp = 36pts | 80% = 12pts | 100% = 0pts
+            # Water deficit: 0% prcp = 60pts | 40% prcp = 36pts | 80% = 12pts | 100% = 0pts
             prcp_score = max(0.0, (100.0 - prcp_pct) / 100.0 * 60.0)
-            # Temperatura acima do normal: +5°C = 25pts (linear)
+            # Above-normal temperature: +5°C = 25pts (linear)
             temp_score = min(max(tavg_anomaly, 0.0), 5.0) / 5.0 * 25.0
-            # Umidade abaixo do normal: RH 40% = 15pts | RH 70% = 0pts
+            # Below-normal humidity: RH 40% = 15pts | RH 70% = 0pts
             rh_score   = max(0.0, min(70.0 - rh_avg_mean, 30.0)) / 30.0 * 15.0
             intensity  = round(prcp_score + temp_score + rh_score, 1)
 
-            # Backward-compat: limiar original era prcp_pct < 40 AND (temp OR rh)
+            # Backward-compat: original threshold was prcp_pct < 40 AND (temp OR rh)
             confirmed_legacy = (
                 prcp_pct < pos_thresh.get("prcp_deficit_pct", 40) and
                 (tavg_anomaly > pos_thresh.get("tavg_anomaly_c", 2.0) or
@@ -379,25 +379,25 @@ class PoseidonConnector:
                 "tavg_anomaly":   round(tavg_anomaly, 2),
                 "rh_avg":         round(rh_avg_mean, 1),
                 "reason": (
-                    f"Prcp {prcp_pct:.0f}% do normal | "
+                    f"Prcp {prcp_pct:.0f}% from normal | "
                     f"Tmed anomalia {tavg_anomaly:+.1f}°C | "
-                    f"UR {rh_avg_mean:.0f}% | Intensidade {intensity:.0f}/100"
+                    f"UR {rh_avg_mean:.0f}% | Intensity {intensity:.0f}/100"
                 ),
             }
 
-        elif event_type == "chuva":
+        elif event_type == "rainfall":
             total_prcp   = df["prcp"].sum()
             normal_prcp  = CLIMATE_NORMALS_RS.get(center_month, {}).get("prcp_mm", 110) * months_span
             prcp_pct     = (total_prcp / normal_prcp * 100) if normal_prcp > 0 else 100
             rh_avg_mean  = df["rh_avg"].mean()
             wspd_max_max = df["wspd_max"].max()
 
-            # Excesso de chuva: 150% excesso acima do normal = 65pts
+            # Excesso rainfall: 150% above normal = 65pts
             excess_pct  = max(0.0, prcp_pct - 100.0)
             prcp_score  = min(excess_pct / 150.0, 1.0) * 65.0
-            # Umidade alta: RH 100% = 25pts (a partir de 75%)
+            # High humidity: RH 100% = 25pts (statirng from  75%)
             rh_score    = max(0.0, rh_avg_mean - 75.0) / 25.0 * 25.0
-            # Vento: 80 km/h = 10pts
+            # Wind: 80 km/h = 10pts
             wind_score  = min(max(wspd_max_max - 20.0, 0.0) / 60.0, 1.0) * 10.0
             intensity   = round(prcp_score + rh_score + wind_score, 1)
 
@@ -415,22 +415,22 @@ class PoseidonConnector:
                 "reason": (
                     f"Prcp {prcp_pct:.0f}% do normal | "
                     f"UR {rh_avg_mean:.0f}% | Rajada {wspd_max_max:.1f} km/h | "
-                    f"Intensidade {intensity:.0f}/100"
+                    f"Intensity {intensity:.0f}/100"
                 ),
             }
 
-        elif event_type == "geada":
+        elif event_type == "frost":
             frost_days  = int((df["tmin"] < pos_thresh.get("tmin_threshold", 2.0)).sum())
             consecutive = self._max_consecutive(
                 df["tmin"] < pos_thresh.get("tmin_threshold", 2.0)
             )
             tmin_abs = df["tmin"].min()
 
-            # Dias de geada: 5+ dias = 50pts
+            # Frost days: 5+ days = 50pts
             days_score  = min(frost_days / 5.0, 1.0) * 50.0
-            # Consecutivos: 3+ dias = 30pts
+            # Consecutive days: 3+ dias = 30pts
             consec_score = min(consecutive / 3.0, 1.0) * 30.0
-            # Profundidade: tmin -5°C = 20pts (de +2°C a -5°C = 7°C range)
+            # Severity: tmin -5°C = 20pts (from +2°C to -5°C = 7°C range)
             depth_score = max(0.0, min(2.0 - tmin_abs, 7.0)) / 7.0 * 20.0
             intensity   = round(days_score + consec_score + depth_score, 1)
 
@@ -443,12 +443,12 @@ class PoseidonConnector:
                 "tmin_abs":    round(tmin_abs, 2),
                 "reason": (
                     f"{frost_days} dias tmin < {pos_thresh.get('tmin_threshold',2)}°C | "
-                    f"Consecutivos: {consecutive} | "
+                    f"Consecutive: {consecutive} | "
                     f"Tmin abs: {tmin_abs:.1f}°C | Intensidade {intensity:.0f}/100"
                 ),
             }
 
-        elif event_type == "granizo":
+        elif event_type == "hail":
             heavy_rain_days = int((df["prcp"]     > pos_thresh.get("prcp_daily_max",     30)).sum())
             high_wind_days  = int((df["wspd_max"]  > pos_thresh.get("wspd_max_threshold", 40)).sum())
             wspd_max_max    = df["wspd_max"].max()
@@ -470,14 +470,14 @@ class PoseidonConnector:
                 "prcp_max_day":    round(df["prcp"].max(), 1),
                 "wspd_max":        round(wspd_max_max, 1),
                 "reason": (
-                    f"Chuva intensa: {heavy_rain_days}d | "
-                    f"Vento forte: {high_wind_days}d | "
-                    f"Rajada máx {wspd_max_max:.1f} km/h | "
-                    f"Intensidade {intensity:.0f}/100"
+                    f"Heavy rainfall: {heavy_rain_days}d | "
+                    f"Strong wind: {high_wind_days}d | "
+                    f"Max gust {wspd_max_max:.1f} km/h | "
+                    f"Intensity {intensity:.0f}/100"
                 ),
             }
 
-        return {"confirmed": False, "intensity": 0, "reason": "Tipo de evento não suportado."}
+        return {"confirmed": False, "intensity": 0, "reason": "Unsupported event type."}
 
     def summarize_nearest(
         self,
@@ -485,7 +485,7 @@ class PoseidonConnector:
         start_date: date,
         end_date: date,
     ) -> Dict:
-        """Busca dados do ponto mais próximo (sem IDW). 1 query SQL."""
+        """Fetches dataa from nearest usca dados do ponto mais próximo (sem IDW). 1 query SQL."""
         pid = nearest["point_id"]
         df  = self.get_weather_data([pid], start_date, end_date)
         if df.empty:
@@ -494,7 +494,7 @@ class PoseidonConnector:
 
     @staticmethod
     def _max_consecutive(bool_series) -> int:
-        """Conta o máximo de dias consecutivos True em uma série booleana."""
+        """Counts the maximum number of consecutive True days in a boolean series."""
         max_run = cur_run = 0
         for v in bool_series:
             if v:
@@ -512,15 +512,15 @@ class PoseidonConnector:
         years_back: int = 4,
     ) -> Dict:
         """
-        Busca dados históricos do mesmo ponto nos anos anteriores.
-        Uma única query SQL batched (IN + BETWEEN por union) em vez de
-        N queries sequenciais — reduz round-trips ao banco de ~4x.
+        Fetches historical data from the same point in previous years.
+        A single batched SQL query (IN + BETWEEN by union) instead of
+        N sequential queries — reduces database round-trips by ~4x.
         """
         from datetime import date as date_cls
 
         pid        = nearest["point_id"]
         periods    = []
-        years_map  = {}   # year_label → ano real para legibilidade
+        years_map  = {}   # year_label → actual year for readbility
 
         for delta in range(1, years_back + 1):
             try:
@@ -534,7 +534,7 @@ class PoseidonConnector:
         if not periods:
             return {}
 
-        # ── Uma query com OR de períodos ───────────────────────────────────
+        # ── One query with OR across periods ───────────────────────────────────
         where_clauses = " OR ".join(
             f"(date BETWEEN %s AND %s)" for _ in periods
         )
@@ -561,7 +561,7 @@ class PoseidonConnector:
         df["prcp"] = pd.to_numeric(df["prcp"], errors="coerce")
         df["tavg"] = pd.to_numeric(df["tavg"], errors="coerce")
 
-        # Agrupa por ano e descarta períodos com < 20 obs
+        # Group by year and discard periods with < 20 observations
         all_prcps  = []
         all_tavgs  = []
         years_used = []
@@ -586,7 +586,7 @@ class PoseidonConnector:
             "n_years":       len(years_used),
         }
 
-    # ── sumarização do período ────────────────────────────────────────────────
+    # ── period summarization ────────────────────────────────────────────────
 
     def summarize_period(
         self,
@@ -594,7 +594,7 @@ class PoseidonConnector:
         start_date: date,
         end_date: date,
     ) -> Dict:
-        """Retorna estatísticas resumidas do período interpolado."""
+        """Returns summary statistics for the interpolated period."""
         if interpolated_df.empty:
             return {}
         df = interpolated_df.copy()

@@ -740,14 +740,14 @@ class DocxExporter:
                 f"Phenological phase: "
             ))
             _run(p, phase.upper(), bold=True, color=C_AZUL_ESC)
-            _run(p, f" (sensibilidade {sens:.0f}%).{soil_note} Perda financeira estimada: ")
+            _run(p, f" (sensitivity {sens:.0f}%).{soil_note} Estimated financial loss: ")
             _run(p, _brl(loss.get("financial_loss_brl", 0)), bold=True, color=C_VERMELHO)
-            _run(p, f". Confidence: {conf:.0f}%.)
+            _run(p, f". Confidence: {conf:.0f}%.")
         elif verdict == "INCONCLUSIVE":
             _run(p, (
                 f"Partial signals of {el} detected, without sufficient evidence for "
                 f"definitive confirmation (confidence: {conf:.0f}%).{soil_note} "
-                f"Recomenda-se vistoria presencial."
+                f"On-site inspection recommended."
             ))
         else:
             _run(p, (

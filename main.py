@@ -13,30 +13,29 @@ console = Console()
 
 DB_URL = ""
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# Argumentos
+# Arguments
 # ─────────────────────────────────────────────────────────────────────────────
 
 def build_parser():
     p = argparse.ArgumentParser(
-        description="Agricultural Claims Validator — Poseidon + Copernicus + EMBRAPAa spectral index images",
+        description="Agricultural Claims Validator — Poseidon + Copernicus + EMBRAPA spectral index images",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
     p.add_argument("--geojson",   required=True,  help="GeoJSON farm archive")
-    p.add_argument("--start",     required=True,  help="Event Inicial Date (YYYY-MM-DD)")
-    p.add_argument("--end",       required=True,  help="Event Final Date (YYYY-MM-DD)")
+    p.add_argument("--start",     required=True,  help="Initial event date (YYYY-MM-DD)")
+    p.add_argument("--end",       required=True,  help="Final event date (YYYY-MM-DD)")
     p.add_argument("--problem",   required=True,  choices=["drought", "rainfall", "frost", "hail"])
     p.add_argument("--crop",      required=True,  choices=["soybean", "wheat", "maze", "rice"])
-    p.add_argument("--db",        default=DB_URL,  help="Connection string PostgreSQL")
+    p.add_argument("--db",        default=DB_URL,  help="PostgreSQL connection string")
     p.add_argument("--area-ha",   type=float, default=None)
     p.add_argument("--planting",  default=None,   help="Sowing date (YYYY-MM-DD)")
-    p.add_argument("--farm-name", default="Propriedade Rural")
+    p.add_argument("--farm-name", default="Rural Property")
     p.add_argument("--docx",      default=None,   help="Output .docx filename")
     p.add_argument("--dry-run",   action="store_true", help="Uses simulated data")
     p.add_argument("--fast",      action="store_true", help="Use the nearest Poseidon point (without IDW)")
-    p.add_argument("--no-soil",   action="store_true", help="Embrapa soil analysis skips")
+    p.add_argument("--no-soil",   action="store_true", help="Skip EMBRAPA soil analysis")
     p.add_argument("--soil-shp",  default=None,   help="Alternative path to EMBRAPA shapefile")
     p.add_argument("--pipeline",  default=None,   help="Path to the output pipeline_*.json file (default: pipeline_<name>_<date>_<event>.json)")
     return p
@@ -49,14 +48,17 @@ def build_parser():
 def load_geojson(path: str) -> Dict:
     with open(path, encoding="utf-8") as f:
         gj = json.load(f)
+
     if gj.get("type") == "FeatureCollection":
         geometry = gj["features"][0]["geometry"]
     elif gj.get("type") == "Feature":
         geometry = gj["geometry"]
     else:
         geometry = gj
+
     if geometry["type"] not in ("Polygon", "MultiPolygon"):
-        raise ValueError(f"Invalid Geometry: {geometry['type']}. Use Polygon ou MultiPolygon.")
+        raise ValueError(f"Invalid geometry: {geometry['type']}. Use Polygon or MultiPolygon.")
+
     return geometry
 
 
@@ -103,7 +105,7 @@ def compute_area_ha(geometry: Dict) -> float:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Dados sintéticos para dry-run
+# Synthetic data for dry-run
 # ─────────────────────────────────────────────────────────────────────────────
 
 def synthetic_copernicus(event_type: str) -> Dict:
@@ -216,7 +218,7 @@ def synthetic_soil(event_type: str) -> Dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _json_default(obj):
-    """Serializer para tipos não nativos do JSON (date, datetime, etc.)."""
+    """Serializer for non-native JSON types (date, datetime, etc.)."""
     if isinstance(obj, (datetime, date)):
         return obj.isoformat()
     if hasattr(obj, "__float__"):
@@ -228,9 +230,8 @@ def _json_default(obj):
 
 def _idw_daily_to_records(idw_df) -> list:
     """
-    Converte o DataFrame diário interpolado pelo IDW em lista de dicts,
-    garantindo que 'date' seja string ISO e que todos os campos numéricos
-    esperados pelo dashboard.py estejam presentes.
+    Converts the daily DataFrame interpolated using IDW into a list of dictionaries, ensuring that date is an ISO string and 
+    that all numeric fields expected by dashboard.py are present.
     """
     if idw_df is None or getattr(idw_df, "empty", True):
         return []
@@ -256,11 +257,10 @@ def _idw_daily_to_records(idw_df) -> list:
 
 def _cop_data_with_series(cop_data: dict, start_date: date, end_date: date) -> dict:
     """
-    Garante que cada índice em cop_data tenha as chaves que cop_to_ts()
-    do dashboard.py precisa: baseline_series e event_series, com items
-    contendo 'from', 'mean', 'stdev'.
-    Se cop_data já veio da Statistics API com séries aninhadas, mantém.
-    Se veio de outro formato (sem séries), reconstrói listas mínimas.
+    Ensures that each index in cop_data contains the keys that cop_to_ts() from dashboard.py requires: baseline_series and event_series, 
+    with items containing 'from', 'mean', and 'stdev'.
+    If cop_data already came from the Statistics API with nested series, it keeps them.
+    If it came in another format (without series), it reconstructs minimal lists.
     """
     out = {}
     for idx_name, data in cop_data.items():
@@ -270,7 +270,7 @@ def _cop_data_with_series(cop_data: dict, start_date: date, end_date: date) -> d
 
         entry = dict(data)
 
-        # --- garante baseline_series ---
+        # --- ensure baseline_series ---
         if not entry.get("baseline_series"):
             b_mean = entry.get("baseline_mean")
             if b_mean is not None:
@@ -286,7 +286,7 @@ def _cop_data_with_series(cop_data: dict, start_date: date, end_date: date) -> d
             else:
                 entry["baseline_series"] = []
 
-        # --- garante event_series ---
+        # --- ensure event_series ---
         if not entry.get("event_series"):
             e_mean = entry.get("event_mean")
             if e_mean is not None:
@@ -298,7 +298,7 @@ def _cop_data_with_series(cop_data: dict, start_date: date, end_date: date) -> d
             else:
                 entry["event_series"] = []
 
-        # normaliza itens das séries para o schema esperado
+        #normalize series items to the expected schema
         for series_key in ("baseline_series", "event_series"):
             normalized = []
             for item in entry[series_key]:
@@ -339,10 +339,9 @@ def save_pipeline_json(
     output_path: str = None,
 ) -> str:
     """
-    Serializa todos os dados do pipeline no formato exato que o dashboard.py
-    espera ler ao carregar um pipeline_*.json.
-
-    Retorna o caminho do arquivo salvo.
+    Serializes all pipeline data in the exact format that dashboard.py 
+    expects to read when loading a pipeline_*.json.
+    Returns the path of the saved file.
     """
     safe = farm_name.replace(" ", "_").replace("/", "-")
     if output_path is None:
@@ -384,16 +383,16 @@ def main() -> int:
     parser = build_parser()
     args   = parser.parse_args()
 
-    # Datas
+    # Dates
     try:
         start_date = datetime.strptime(args.start, "%Y-%m-%d").date()
         end_date   = datetime.strptime(args.end,   "%Y-%m-%d").date()
     except ValueError as e:
-        console.print(f"[red]Erro na data: {e}[/red]")
+        console.print(f"[red]Date error: {e}[/red]")
         return 1
 
     if start_date >= end_date:
-        console.print("[red]--start deve ser anterior a --end[/red]")
+        console.print("[red]--start must be earlier than --end[/red]")
         return 1
 
     planting_date: Optional[date] = None
@@ -401,20 +400,21 @@ def main() -> int:
         try:
             planting_date = datetime.strptime(args.planting, "%Y-%m-%d").date()
         except ValueError:
-            console.print("[yellow]Data de plantio inválida — ignorando.[/yellow]")
+            console.print("[yellow]Invalid planting date — ignoring.[/yellow]")
 
     # GeoJSON
-    console.print(f"\n[cyan]► Carregando GeoJSON: {args.geojson}[/cyan]")
+    console.print(f"\n[cyan]► Loading GeoJSON: {args.geojson}[/cyan]")
     try:
         geometry = load_geojson(args.geojson)
     except Exception as e:
-        console.print(f"[red]Erro ao carregar GeoJSON: {e}[/red]")
+        console.print(f"[red]Error loading GeoJSON: {e}[/red]")
         return 1
 
     centroid = compute_centroid(geometry)
     area_ha  = args.area_ha if args.area_ha else compute_area_ha(geometry)
-    console.print(f"   Centróide : lat={centroid['lat']}, lon={centroid['lon']}")
-    console.print(f"   Área      : {area_ha:.1f} ha")
+
+    console.print(f"   Centroid  : lat={centroid['lat']}, lon={centroid['lon']}")
+    console.print(f"   Area      : {area_ha:.1f} ha")
 
     from modules.analysis    import ValidationEngine
     from modules.storyteller import StoryTeller
@@ -422,95 +422,100 @@ def main() -> int:
 
     # ── Dry-run ───────────────────────────────────────────────────────────────
     if args.dry_run:
-        console.print("[yellow]⚠  DRY-RUN: dados simulados.[/yellow]\n")
+        console.print("[yellow]⚠  DRY-RUN: simulated data.[/yellow]\n")
+
         cop_data      = synthetic_copernicus(args.problem)
         pos_summ      = synthetic_poseidon_summary(args.problem, start_date)
         pos_vote      = synthetic_poseidon_vote(args.problem)
+
         hist_baseline = {
-            "prcp_mean_mm": 312.0, "prcp_std_mm": 45.0,
-            "tavg_mean_c": 23.1, "years_used": [2022, 2021, 2020, 2019], "n_years": 4,
+            "prcp_mean_mm": 312.0,
+            "prcp_std_mm": 45.0,
+            "tavg_mean_c": 23.1,
+            "years_used": [2022, 2021, 2020, 2019],
+            "n_years": 4,
         }
+
         neighbors = {}
         soil_data = synthetic_soil(args.problem) if not args.no_soil else None
         idw_df    = None
 
-    # ── Produção ──────────────────────────────────────────────────────────────
+     # ── Production ─────────────────────────────────────────────────────────────
     else:
         # Poseidon
-        console.print("\n[cyan]► Conectando ao Poseidon...[/cyan]")
+        console.print("\n[cyan]► Connecting to Poseidon...[/cyan]")
         from modules.poseidon import PoseidonConnector
         poseidon = PoseidonConnector(args.db)
         try:
             poseidon.connect()
         except Exception as e:
-            console.print(f"[red]Erro de conexão Poseidon: {e}[/red]")
+            console.print(f"[red]Poseidon connection error: {e}[/red]")
             return 1
 
         nearest   = poseidon.find_nearest_point(centroid["lat"], centroid["lon"])
         neighbors = poseidon.find_cardinal_neighbors(centroid["lat"], centroid["lon"])
-        console.print(f"   Ponto mais próximo: ID={nearest['point_id']}")
-        console.print("   Vizinhos: " + " | ".join(
+        console.print(f"   Nearest point: ID={nearest['point_id']}")
+        console.print("   Neighbors: " + " | ".join(
             f"{d}={'✓' if v else '✗'}" for d, v in neighbors.items()
         ))
 
         thresholds = VALIDATION_THRESHOLDS.get(args.problem, {})
-        console.print("\n[cyan]► Votação IDW...[/cyan]")
+        console.print("\n[cyan]► IDW Voting...[/cyan]")
         pos_vote = poseidon.vote_3of4(
             neighbors, start_date, end_date, args.problem, thresholds,
             center_lat=centroid["lat"], center_lon=centroid["lon"],
         )
         console.print(f"   {pos_vote['description']}")
 
-        console.print("\n[cyan]► Interpolação IDW...[/cyan]")
+        console.print("\n[cyan]► IDW Interpolation...[/cyan]")
         if args.fast:
-            console.print("   [yellow]Modo rápido: usando ponto mais próximo[/yellow]")
+            console.print("   [yellow]Fast mode: using nearest point[/yellow]")
             pos_summ = poseidon.summarize_nearest(nearest, start_date, end_date)
         else:
             interp_df = poseidon.idw_interpolate(centroid["lat"], centroid["lon"], neighbors, start_date, end_date)
             pos_summ  = poseidon.summarize_period(interp_df, start_date, end_date)
 
-        console.print("[cyan]   Coletando histórico local...[/cyan]")
+        console.print("[cyan]   Collecting local historical data...[/cyan]")
         hist_baseline = poseidon.get_historical_baseline(nearest, start_date, end_date)
         idw_df        = interp_df if not args.fast else None
         if hist_baseline:
-            console.print(f"   Histórico: {hist_baseline['n_years']} anos — "
-                          f"prcp média {hist_baseline['prcp_mean_mm']} mm")
+            console.print(f"   Historical data: {hist_baseline['n_years']} years — "
+                          f"average precipitation {hist_baseline['prcp_mean_mm']} mm")
         poseidon.close()
 
         # Copernicus
-        console.print("\n[cyan]► Coletando dados Copernicus/Sentinel-2...[/cyan]")
+        console.print("\n[cyan]► Collecting Copernicus/Sentinel-2 data...[/cyan]")
         from modules.copernicus import CopernicusClient
         try:
             cop      = CopernicusClient()
             cop_data = cop.collect_all_indices(geometry, start_date, end_date)
         except Exception as e:
-            console.print(f"[red]Erro Copernicus: {e}[/red]")
+            console.print(f"[red]Copernicus error: {e}[/red]")
             return 1
-
-        # Solo EMBRAPA
+        # EMBRAPA Soil
         soil_data = None
         if not args.no_soil:
-            console.print("\n[cyan]► Analisando dados de solo EMBRAPA...[/cyan]")
+            console.print("\n[cyan]► Analyzing EMBRAPA soil data...[/cyan]")
             try:
                 from modules.soilapt import check_soil_suitability
                 soil_data = check_soil_suitability(
                     geojson_path=args.geojson,
-                    soil_shapefile=args.soil_shp,  # None = usa config.py
+                    soil_shapefile=args.soil_shp,  # None = uses config.py
                 )
                 if soil_data.get("error"):
-                    console.print(f"   [yellow]⚠ Solo: {soil_data['error']}[/yellow]")
+                    console.print(f"   [yellow]⚠ Soil: {soil_data['error']}[/yellow]")
                 else:
-                    sol  = soil_data.get("resolved_name") or soil_data.get("soil_name", "N/D")
-                    cls  = soil_data.get("dominant_class", "N/D")
-                    apt  = soil_data.get("aptitude_label", "N/D")
-                    suit = "APTA ✅" if soil_data.get("suitable_for_agriculture") else "INAPTA ❌"
-                    console.print(f"   Solo: {sol} | Classe {cls} ({apt}) | {suit}")
+                    sol  = soil_data.get("resolved_name") or soil_data.get("soil_name", "N/A")
+                    cls  = soil_data.get("dominant_class", "N/A")
+                    apt  = soil_data.get("aptitude_label", "N/A")
+                    suit = "SUITABLE ✅" if soil_data.get("suitable_for_agriculture") else "NOT SUITABLE ❌"
+                    console.print(f"   Soil: {sol} | Class {cls} ({apt}) | {suit}")
             except Exception as e:
-                console.print(f"   [yellow]⚠ Análise de solo falhou: {e}[/yellow]")
+                console.print(f"   [yellow]⚠ Soil analysis failed: {e}[/yellow]")
                 soil_data = {"error": str(e)}
 
-    # ── Análise ───────────────────────────────────────────────────────────────
-    console.print("\n[cyan]► Executando análise...[/cyan]")
+    # ── Analysis ───────────────────────────────────────────────────────────────
+    console.print("\n[cyan]► Running analysis...[/cyan]")
     engine = ValidationEngine(
         event_type=args.problem, crop_type=args.crop,
         start_date=start_date,   end_date=end_date,
@@ -522,7 +527,7 @@ def main() -> int:
         soil_data=soil_data,
     )
 
-    # ── Relatório no terminal ─────────────────────────────────────────────────
+    # ── Terminal Report ────────────────────────────────────────────────────────
     story = StoryTeller(
         event_type=args.problem,  crop_type=args.crop,
         start_date=start_date,    end_date=end_date,
@@ -535,7 +540,7 @@ def main() -> int:
         soil_data=soil_data,
     )
 
-    # ── Exportar Pipeline JSON ───────────────────────────────────────────────────
+    # ── Export Pipeline JSON ───────────────────────────────────────────────────
     try:
         _idw = idw_df if "idw_df" in dir() else None
         pipeline_path = save_pipeline_json(
@@ -555,15 +560,14 @@ def main() -> int:
             idw_df=_idw,
             output_path=args.pipeline if args.pipeline else None,
         )
-        console.print(f"\n[bold cyan]📦 Pipeline JSON salvo: {pipeline_path}[/bold cyan]")
+        console.print(f"\n[bold cyan]📦 Pipeline JSON saved: {pipeline_path}[/bold cyan]")
     except Exception as e:
-        console.print(f"[yellow]⚠ Erro ao salvar pipeline JSON: {e}[/yellow]")
-
-    # ── Exportar DOCX ─────────────────────────────────────────────────────────
+        console.print(f"[yellow]⚠ Error saving pipeline JSON: {e}[/yellow]")
+    # ── Export DOCX ───────────────────────────────────────────────────────────
     try:
         from modules.docx_exporter import DocxExporter
         safe      = args.farm_name.replace(" ", "_").replace("/", "-")
-        docx_path = args.docx if args.docx else f"relatorio_{safe}_{args.start}_{args.problem}.docx"
+        docx_path = args.docx if args.docx else f"report_{safe}_{args.start}_{args.problem}.docx"
         exp       = DocxExporter(
             event_type=args.problem,  crop_type=args.crop,
             start_date=start_date,    end_date=end_date,
@@ -575,11 +579,11 @@ def main() -> int:
             hist_baseline=hist_baseline if "hist_baseline" in dir() else {},
             soil_data=soil_data,
         )
-        console.print(f"\n[bold green]📄 Relatório DOCX salvo: {docx_path}[/bold green]\n")
+        console.print(f"\n[bold green]📄 DOCX report saved: {docx_path}[/bold green]\n")
     except ImportError:
-        console.print("[yellow]⚠ python-docx não instalado — instale com: pip install python-docx[/yellow]")
+        console.print("[yellow]⚠ python-docx not installed — install with: pip install python-docx[/yellow]")
     except Exception as e:
-        console.print(f"[yellow]⚠ Erro ao gerar DOCX: {e}[/yellow]")
+        console.print(f"[yellow]⚠ Error generating DOCX: {e}[/yellow]")
 
     return 0
 
